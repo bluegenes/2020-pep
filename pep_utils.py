@@ -32,3 +32,7 @@ def read_samples(samples_file, build_sra_links = False):
         else:
             sys.stderr.write(f"\n\tError: To build SRA links, 'SRR' column must exist in samples file \n\n")
     return samples
+
+def write_yaml(yamlD, paramsfile):
+    with open(paramsfile, 'w') as out:
+        yaml.dump(yamlD, stream=out, indent=2, default_flow_style=False)

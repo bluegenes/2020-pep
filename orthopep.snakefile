@@ -1,7 +1,8 @@
 import os
 import sys
+import yaml
 import pandas as pd
-from pep_utils import read_samples
+from pep_utils import read_samples, write_yaml
 
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 HTTP = HTTPRemoteProvider()
@@ -28,7 +29,7 @@ radiuses= config.get("radiuses", ["1"])
 rule all:
     input: 
         expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}/first_doms.txt"), sample=SAMPLES, k=ksizes, r=radiuses),
-        expand(os.path.join(out_dir, "plass", "{sample}_plass.fa"), sample=SAMPLES)
+        expand(os.path.join(out_dir, "plass", "{sample}_plass.fa"), sample=SAMPLES),
 
 # grab the data
 rule ftp_get_fq1:
@@ -112,6 +113,14 @@ rule plass:
     conda: os.path.join(wrappers_dir, "plass-env.yml")
     script: os.path.join(wrappers_dir, "plass-wrapper.py")
 
+
+rule write_sgc_config:
+    output: os.path.join(sgc_configdir, "{sample}_k{ksize}_r{radius}.yml"),
+    run:
+        configD = {"catlas_base": str(wildcards.sample), "radius": str(wildcards.radius), "ksize": str(wildcards.ksize), "search": [os.path.join(out_dir, "plass", str(wildcards.sample) + "_plass.fa")]}
+        with open(str(output), "w") as out:
+            yaml.dump(configD, stream=out, indent=2, default_flow_style=False)
+
 rule spacegraphcats_build:
     input:
         reads=os.path.join(out_dir, "khmer", "{sample}.abundtrim.fq.gz"),
@@ -134,7 +143,7 @@ rule spacegraphcats_build:
     conda: os.path.join(wrappers_dir, "spacegraphcats-env.yml")
     shell:
         """
-        python -m spacegraphcats {input.config} build extract_contigs extract_reads --nolock --outdir={params.outdir}  
+        python -m spacegraphcats {input.config} build --nolock --outdir={params.outdir}  
         """
 
 rule spacegraphcats_extract_reads_contigs:
