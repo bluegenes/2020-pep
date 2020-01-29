@@ -39,14 +39,15 @@ rule ftp_get_fq1:
     conda: os.path.join(wrappers_dir, "sratools-env.yml")
     params: 
         srr=lambda wildcards: samplesDF.loc[wildcards.sample]['unit'],
-        out_dir=data_dir
+        out_dir=data_dir,
+        compression_level="-9"
     shadow: "shallow"
-    threads: 10
+    threads: 9
     shell:
         """
-        fasterq-dump {params.srr} -O {params.out_dir} -e {threads} -p
-        gzip -9c {params.out_dir}/{params.srr}_1.fastq > {output.r1}
-        gzip -9c {params.out_dir}/{params.srr}_2.fastq > {output.r2}
+        fasterq-dump {params.srr} -O {params.out_dir} -e {threads} -p > {log} 2>&1
+        pigz -c -p {threads} {params.compression_level} {params.out_dir}/{params.srr}_1.fastq > {output.r1}
+        pigz -c -p {threads} {params.compression_level} {params.out_dir}/{params.srr}_2.fastq > {output.r2}
         rm -rf {params.out_dir}/{params.srr}_*.fastq
         """
 
