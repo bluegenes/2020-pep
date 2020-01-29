@@ -16,7 +16,6 @@ info_csv = config.get("info_csv", "all_mmetsp_elvers.csv")
 samplesDF = read_samples(info_csv)
 # subset by samples --> not necessary, bc just generating samples from rule all
 #samplesDF[samplesDF['sample'].isin(samples)]
-
 out_dir = config.get("out_dir", "orthopep_out")
 data_dir = os.path.join(out_dir, "input_data")
 logs_dir = os.path.join(out_dir, "logs")
@@ -33,16 +32,23 @@ rule all:
 
 # grab the data
 rule ftp_get_fq1:
-    input: lambda wildcards: FTP.remote("{}".format(samplesDF.loc[(wildcards.sample), "fq1"]), static=True, keep_local=True, immediate_close=True)
-    output: os.path.join(data_dir,"{sample}_1.fq.gz")
-    log: os.path.join(logs_dir,"get_data", "{sample}_1.ftp")
-    shell: "mv {input} {output} 2> {log}"
-
-rule ftp_get_fq2:
-    input: lambda wildcards: FTP.remote("{}".format(samplesDF.loc[(wildcards.sample), "fq2"]), static=True, keep_local=True, immediate_close=True)
-    output: os.path.join(data_dir,"{sample}_2.fq.gz")
-    log: os.path.join(logs_dir,"get_data", "{sample}_2.ftp")
-    shell: "mv {input} {output} 2> {log}"
+    output: 
+        r1=os.path.join(data_dir,"{sample}_1.fq.gz"),
+        r2=os.path.join(data_dir,"{sample}_2.fq.gz")
+    log: os.path.join(logs_dir,"get_data", "{sample}.log")
+    conda: os.path.join(wrappers_dir, "sratools-env.yml")
+    params: 
+        srr=lambda wildcards: samplesDF.loc[wildcards.sample]['unit'],
+        out_dir=data_dir
+    shadow: "shallow"
+    threads: 10
+    shell:
+        """
+        fasterq-dump {params.srr} -O {params.out_dir} -e {threads} -p
+        gzip -9c {params.out_dir}/{params.srr}_1.fastq > {output.r1}
+        gzip -9c {params.out_dir}/{params.srr}_2.fastq > {output.r2}
+        rm -rf {params.out_dir}/{params.srr}_*.fastq
+        """
 
 adapter_file= "https://raw.githubusercontent.com/timflutre/trimmomatic/master/adapters/TruSeq3-PE.fa"
 rule grab_adapters:
