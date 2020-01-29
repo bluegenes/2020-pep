@@ -14,8 +14,6 @@ SAMPLES = [x.strip().split('\t')[0] for x in open(sample_namelist, "r")]
 
 info_csv = config.get("info_csv", "all_mmetsp_elvers.csv")
 samplesDF = read_samples(info_csv)
-# subset by samples --> not necessary, bc just generating samples from rule all
-#samplesDF[samplesDF['sample'].isin(samples)]
 out_dir = config.get("out_dir", "orthopep_out")
 data_dir = os.path.join(out_dir, "input_data")
 logs_dir = os.path.join(out_dir, "logs")
@@ -31,7 +29,7 @@ rule all:
         expand(os.path.join(out_dir, "plass", "{sample}_plass.fa"), sample=SAMPLES),
 
 # grab the data
-rule ftp_get_fq1:
+rule ftp_get_fq:
     output: 
         r1=os.path.join(data_dir,"{sample}_1.fq.gz"),
         r2=os.path.join(data_dir,"{sample}_2.fq.gz")
