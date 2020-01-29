@@ -70,7 +70,7 @@ rule adapter_trim:
     benchmark: os.path.join(logs_dir, "trimmomatic", "{sample}_pe.benchmark")
     threads: 32
     params:
-        trimmer=["ILLUMINACLIP:{snakemake.input.adapters}:2:0:15 LEADING:2 TRAILING:2 SLIDINGWINDOW:4:2 MINLEN:31"],
+        trimmer=["ILLUMINACLIP:wrappers/TruSeq3-PE.fa:2:0:15 LEADING:2 TRAILING:2 SLIDINGWINDOW:4:2 MINLEN:31"],
         compression_level="-9"
     conda: os.path.join(wrappers_dir, "trimmomatic-env.yml")
     script: os.path.join(wrappers_dir, "trimmomatic-pe.py")
