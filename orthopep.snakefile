@@ -18,7 +18,7 @@ out_dir = config.get("out_dir", "orthopep_out")
 data_dir = os.path.join(out_dir, "input_data")
 logs_dir = os.path.join(out_dir, "logs")
 wrappers_dir = "wrappers"
-sgc_configdir = "sgc_config"
+sgc_configdir = os.path.join(out_dir, "spacegraphcats", "sgc_config")
 
 ksizes= config.get("ksizes", ["31"])
 radiuses= config.get("radiuses", ["1"])
@@ -88,7 +88,7 @@ rule kmer_trim:
     conda: os.path.join(wrappers_dir, "khmer-env.yml")
     shell:
         """
-        interleave-reads.py {input} | trim-low-abund.py --gzip -C 3 -Z 18 -M {resources.mem_mb} -V - -o {output} 2> {log}
+        interleave-reads.py {input} | trim-low-abund.py --gzip -C 3 -Z 18 -M {resources.mem_mb} -V - -o {output} > {log} 2>&1
         """
 
 rule kmer_split_pairs:
@@ -98,6 +98,8 @@ rule kmer_split_pairs:
         r1=os.path.join(out_dir, "khmer", "{sample}.abundtrim_1.fq.gz"),
         r2=os.path.join(out_dir, "khmer", "{sample}.abundtrim_2.fq.gz")
     conda: os.path.join(wrappers_dir, "khmer-env.yml")
+    log: os.path.join(logs_dir, "khmer", "{sample}_split_pairs.log")
+    benchmark: os.path.join(logs_dir, "khmer", "{sample}_split_pairs.benchmark")
     threads: 3
     shell:
         """
@@ -122,7 +124,7 @@ rule plass:
 rule write_sgc_config:
     output: os.path.join(sgc_configdir, "{sample}_k{ksize}_r{radius}.yml"),
     run:
-        configD = {"catlas_base": str(wildcards.sample), "radius": str(wildcards.radius), "ksize": str(wildcards.ksize), "search": [os.path.join(out_dir, "plass", str(wildcards.sample) + "_plass.fa")]}
+        configD = {"catlas_base": str(wildcards.sample), "radius": str(wildcards.radius), "ksize": str(wildcards.ksize), "search": [os.path.join(out_dir, "plass", str(wildcards.sample) + "_plass.fa")], "input_sequences": [os.path.join(out_dir, "khmer", str(wildcards.sample) + ".abundtrim.fq.gz")]}
         with open(str(output), "w") as out:
             yaml.dump(configD, stream=out, indent=2, default_flow_style=False)
 
