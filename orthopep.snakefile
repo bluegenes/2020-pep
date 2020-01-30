@@ -25,8 +25,11 @@ radiuses= config.get("radiuses", ["1"])
 
 rule all:
     input: 
-        expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}/first_doms.txt"), sample=SAMPLES, k=ksizes, r=radiuses),
-        expand(os.path.join(out_dir, "plass", "{sample}_plass.fa"), sample=SAMPLES),
+        #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}/first_doms.txt"), sample=SAMPLES, k=ksizes, r=radiuses),
+        #expand(os.path.join(out_dir, "plass", "{sample}_plass.fa"), sample=SAMPLES),
+        expand(os.path.join(out_dir, "transdecoder", "{sample}.fasta.transdecoder.pep"), sample=SAMPLES),
+        #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}_search_oh0/{sample}.cdbg_ids.contigs.fa.gz"), sample=SAMPLES, k=ksizes, r=radiuses)
+        #expand(os.path.join(out_dir, "trimmed", "{sample}_1.polyAtrim.fq.gz"), sample=SAMPLES)
 
 # grab the data
 rule ftp_get_fq:
@@ -75,6 +78,29 @@ rule adapter_trim:
     conda: os.path.join(wrappers_dir, "trimmomatic-env.yml")
     script: os.path.join(wrappers_dir, "trimmomatic-pe.py")
 
+rule polyA_trim:
+    input: 
+        r1=os.path.join(out_dir, "trimmed", "{sample}_1.trim.fq.gz"),
+        r2=os.path.join(out_dir, "trimmed", "{sample}_2.trim.fq.gz"),
+    output:
+        r1=os.path.join(out_dir, "trimmed", "{sample}_1.polyAtrim.fq.gz"),
+        r2=os.path.join(out_dir, "trimmed", "{sample}_2.polyAtrim.fq.gz"),
+    log: os.path.join(logs_dir, "prinseq", "{sample}_pe.log")
+    benchmark: os.path.join(logs_dir, "prinseq", "{sample}_pe.benchmark")
+    threads: 10
+    params:
+        out_good=lambda w: os.path.join(out_dir, "trimmed","{sample}_polyAtrim"),
+        out_bad="null",
+        polyAlen=5,
+        extra=""
+    conda: os.path.join(wrappers_dir, "prinseq-env.yml")
+    shell:
+        """
+        prinseq -fastq {input.r1} -fastq2 {input.r2} -out_good {params.out_good} -out_bad {params.out_bad} -log {log} -trim_tail_left {params.polyAlen} -trim_tail_right {params.polyAlen} -stats_all >>{log}
+        mv {params.out_good}_1.f*q.gz {ouput.r1}
+        mv {params.out_good}_2.f*q.gz {ouput.r2}
+        """
+
 rule kmer_trim:
     input: 
         os.path.join(out_dir, "trimmed", "{sample}_1.trim.fq.gz"),
@@ -106,6 +132,64 @@ rule kmer_split_pairs:
         """
         split-paired-reads.py {input} --gzip -1 {output.r1} -2 {output.r2} -0 {output.orphans} > {log} 2>&1
         """
+
+rule trinity:
+    input:
+        left=os.path.join(out_dir, "khmer", "{sample}.abundtrim_1.fq.gz"),
+        right=os.path.join(out_dir, "khmer", "{sample}.abundtrim_2.fq.gz")
+    output: 
+        fasta=os.path.join(out_dir, "trinity", "{sample}_trinity.fa"),
+        gene_trans_map=os.path.join(out_dir, "trinity", "{sample}_trinity.gene_trans_map")
+    message:
+        """ --- Assembling read data with Trinity 2.9.1 --- """
+    log: 
+        os.path.join(logs_dir, "trinity", "{sample}_trinity.log")
+    benchmark: 
+        os.path.join(logs_dir, "trinity", "{sample}_trinity.benchmark")
+    resources:
+        mem_mb=100000 # 100GB
+    params:
+        extra=""
+    shadow: "shallow"
+    threads: 32
+    conda: os.path.join(wrappers_dir, "trinity-env.yml")
+    script: os.path.join(wrappers_dir, "trinity-wrapper.py")
+
+rule transdecoder_longorfs:
+    input:
+        fasta=os.path.join(out_dir, "trinity", "{sample}_trinity.fa") 
+    output:
+        os.path.join(out_dir, "transdecoder", "{sample}.transdecoder_dir/longest_orfs.pep")
+    log:
+        os.path.join(logs_dir, "transdecoder", "{sample}.transdecoder-longorfs.log")
+    benchmark: 
+        os.path.join(logs_dir, "transdecoder", "{sample}.transdecoder-longorfs.benchmark")
+    params:
+        extra= " -m 80 "
+    threads: 8
+    conda: os.path.join(wrappers_dir, "transdecoder-env.yml") 
+    wrapper: os.path.join(wrappers_dir, "transdecoder-longorfs.wrapper.py")
+      
+
+rule transdecoder_predict:
+    input:
+        fasta=os.path.join(out_dir, "trinity", "{sample}_trinity.fa"),
+        longorfs=os.path.join(out_dir, "transdecoder", "{sample}.transdecoder_dir/longest_orfs.pep")
+    output:
+        os.path.join(out_dir, "transdecoder", "{sample}.fasta.transdecoder.bed"),
+        os.path.join(out_dir, "transdecoder", "{sample}.fasta.transdecoder.cds"),
+        os.path.join(out_dir, "transdecoder", "{sample}.fasta.transdecoder.pep"),
+        os.path.join(out_dir, "transdecoder","{sample}.fasta.transdecoder.gff3")
+    log:
+        os.path.join(logs_dir, "transdecoder", "{sample}.transdecoder-predict.log")
+    benchmark:
+        os.path.join(logs_dir, "transdecoder", "{sample}.transdecoder-predict.benchmark")
+    params:
+        extra="" 
+    threads: 8
+    conda: os.path.join(wrappers_dir, "transdecoder-env.yml") 
+    wrapper: os.path.join(wrappers_dir, "transdecoder-predict.wrapper.py")
+
 
 rule plass:
     input:

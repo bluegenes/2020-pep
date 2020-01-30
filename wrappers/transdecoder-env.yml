@@ -1,0 +1,8 @@
+channels:
+    - conda-forge
+    - bioconda
+    - defaults
+dependencies:
+    - transdecoder=5.5.0
+    - seqlogo
+    - conda-forge::r-ggplot2
