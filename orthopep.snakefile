@@ -96,14 +96,15 @@ rule kmer_split_pairs:
         os.path.join(out_dir, "khmer", "{sample}.abundtrim.fq.gz")
     output:
         r1=os.path.join(out_dir, "khmer", "{sample}.abundtrim_1.fq.gz"),
-        r2=os.path.join(out_dir, "khmer", "{sample}.abundtrim_2.fq.gz")
+        r2=os.path.join(out_dir, "khmer", "{sample}.abundtrim_2.fq.gz"),
+        orphans=os.path.join(out_dir, "khmer", "{sample}.abundtrim_orphans.fq.gz")
     conda: os.path.join(wrappers_dir, "khmer-env.yml")
     log: os.path.join(logs_dir, "khmer", "{sample}_split_pairs.log")
     benchmark: os.path.join(logs_dir, "khmer", "{sample}_split_pairs.benchmark")
     threads: 3
     shell:
         """
-        split-paired-reads.py {input} --gzip -1 {output.r1} -2 {output.r2} > {log} 2>&1
+        split-paired-reads.py {input} --gzip -1 {output.r1} -2 {output.r2} -0 {output.orphans} > {log} 2>&1
         """
 
 rule plass:
@@ -116,10 +117,43 @@ rule plass:
         os.path.join(logs_dir, "plass", "{sample}_plass.log")
     benchmark: 
         os.path.join(logs_dir, "plass", "{sample}_plass.benchmark")
-    threads: 16
+    params:
+        #tmpdir="tmp",
+        extra=" -v 3"
+    shadow: "shallow"
+    threads: 28
     conda: os.path.join(wrappers_dir, "plass-env.yml")
     script: os.path.join(wrappers_dir, "plass-wrapper.py")
 
+
+rule cluster_plass:
+    input: 
+        os.path.join(out_dir, "plass", "{sample}_plass.fa")
+    output: 
+        os.path.join(out_dir, "cdhit", "{sample}_plass_p{perc_id}.clstr")
+    log: 
+        os.path.join(logs_dir, "cdhit", "{sample}_plass_p{perc_id}.log")
+    benchmark: 
+        os.path.join(logs_dir, "cdhit", "{sample}_plass_p{perc_id}.benchmark")
+    resources:
+        mem_mb=16000 # 16GB
+    threads: 10
+    params:
+        coverage=60,
+        perc_id=lambda w: {wildcards.perc_id},
+        word_size=5, # 5 for thresholds 0.7->1.0
+        prefix=lambda wildcards: os.path.dirname(output),
+        extra=""
+    conda: os.path.join(wrappers_dir, "cdhit-env.yml")
+    shell:
+        """
+         cd-hit -i {input} -o {params.prefix} -c {params.perc_id} -n {params.word_size}  -d 0 -aS {params.coverage}
+         -aL {params.coverage} -T {threads} -M {resources.mem_mb} -o {params.prefix}  {params.extra} &> {log}
+         mv {params.prefix} {output[0]} 2>> {log}
+        """
+         #other options
+         #cd-hit -i {input} -o essMarkerGenes/marker-{wildcards.marker}_cd-hit -c {CDHIT_PERC} -d 0 -T {THREADS}
+         #cd-hit-est -o cdhit -c 0.98 -i Trinity.fasta -p 1 -d 0 -b 3 -T 10
 
 rule write_sgc_config:
     output: os.path.join(sgc_configdir, "{sample}_k{ksize}_r{radius}.yml"),
@@ -133,7 +167,7 @@ rule spacegraphcats_build:
         reads=os.path.join(out_dir, "khmer", "{sample}.abundtrim.fq.gz"),
         config=os.path.join(sgc_configdir, "{sample}_k{ksize}_r{radius}.yml"),
     output:
-        os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}/bcalm.{sample}_k{ksize}_r{radius}.k31.unitigs.fa"),
+ #       os.path.join(out_dir, "spacegraphcats", "{sample}/bcalm.{sample}.k{size}.unitigs.fa"),
         os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}/catlas.csv"),
         os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}/cdbg.gxt"),
         os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}/contigs.fa.gz"),
