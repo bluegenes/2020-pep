@@ -3,5 +3,4 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - khmer=3.0.0a3
-
+  - pear=0.9.6

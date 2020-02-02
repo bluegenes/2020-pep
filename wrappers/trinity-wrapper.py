@@ -9,8 +9,11 @@ from os import path
 from snakemake.shell import shell
 
 extra = snakemake.params.get("extra", "")
-max_memory =  snakemake.resources.get("mem_mb", "10000")
-mem = str(max_memory).rsplit("000")[0] + "G"
+max_memory =  str(snakemake.resources.get("mem_mb", "10000"))
+if "000" in max_memory:
+    mem = max_memory.rsplit("000", 1)[0] + "G"
+else:
+    mem = max_memory + "M"
 
 #allow multiple input files for single assembly
 left = snakemake.input.get("left")
@@ -50,11 +53,8 @@ log = snakemake.log_fmt_shell(stdout=True, stderr=True)
 
 shell("Trinity {input_cmd} --CPU {snakemake.threads} --max_memory {mem} --seqType {seqtype} --output {trin_outdir} {snakemake.params.extra} {log}")
 
-orig_fasta = os.path.join(trin_outdir, "Trinity.fasta")
-orig_gtm = os.path.join(trin_outdir, "Trinity.fasta.gene_trans_map")
+orig_fasta = path.join(trin_outdir, "Trinity.fasta")
+orig_gtm = path.join(trin_outdir, "Trinity.fasta.gene_trans_map")
 
 shell("cp {orig_fasta} {snakemake.output.fasta}")
 shell("cp {orig_gtm} {snakemake.output.gene_trans_map}")
-
-fasta = join(assembly_dir,"trinity_out_dir/Trinity.fasta"),
-gene_trans_map = join(assembly_dir,"trinity_out_dir/Trinity.fasta.gene_trans_map"),

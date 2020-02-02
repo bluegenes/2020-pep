@@ -1,0 +1,161 @@
+# cluster_config.yml - cluster configuration
+__default__:
+    partition: bmm
+    time: 02:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 1 
+    mem: 1GB
+    chdir: /home/ntpierce/2019-protein-work
+    stderr: "logs/slurm-%j.stderr"
+    stdout: "logs/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+ftp_get_fq:
+    partition: bmm
+    time: 2:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 9
+    mem: 2GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/get_data/slurm-%j.stderr"
+    stdout: "logs/get_data/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+adapter_trim:
+    partition: bmm
+    time: 2:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 10
+    mem: 5GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/trimmomatic/slurm-%j.stderr"
+    stdout: "logs/trimmomatic/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+kmer_trim:
+    partition: bmm
+    time: 2:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 1
+    mem: 30GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/khmer/slurm-%j.stderr"
+    stdout: "logs/khmer/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+polyA_trim:
+    partition: bmm
+    time: 2:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 10
+    mem: 5GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/cutadapt/slurm-%j.stderr"
+    stdout: "logs/cutadapt/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+split_pairs:
+    partition: bmm
+    time: 2:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 3
+    mem: 2GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/khmer/slurm-%j.stderr"
+    stdout: "logs/khmer/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+trinity:
+    partition: bmm
+    time: 3-00:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 20
+    mem: 100GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/trinity/slurm-%j.stderr"
+    stdout: "logs/trinity/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+transdecoder_longorfs:
+    partition: bmm
+    time: 08:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 10
+    mem: 5GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/transdecoder/slurm-%j.stderr"
+    stdout: "logs/transdecoder/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+transdecoder_predict:
+    partition: bmm
+    time: 8:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 10
+    mem: 5GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/transdecoder/slurm-%j.stderr"
+    stdout: "logs/transdecoder/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+pear_read_merging:
+    partition: bmm
+    time: 8:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 10
+    mem: 5GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/pear/slurm-%j.stderr"
+    stdout: "logs/pear/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+plass:
+    partition: bmm
+    time: 1-00:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 32
+    mem: 20GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/plass/slurm-%j.stderr"
+    stdout: "logs/plass/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+cluster_plass:
+    partition: bmm
+    time: 1-00:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 10
+    mem: 20GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/plass/slurm-%j.stderr"
+    stdout: "logs/plass/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+spacegraphcats_build:
+    partition: bmm
+    time: 2-00:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 1
+    mem: 70GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/spacegraphcats/slurm-%j.stderr"
+    stdout: "logs/spacegraphcats/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+spacegraphcats_extract_reads_contigs:
+    partition: bmm
+    time: 2-00:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 1
+    mem: 70GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/spacegraphcats/slurm-%j.stderr"
+    stdout: "logs/spacegraphcats/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+plass_remove_stop:
+    partition: bmm
+    time: 2:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 1
+    mem: 1GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/plass/slurm-%j.stderr"
+    stdout: "logs/plass/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+plass_eliminate_identical_contigs:
+    partition: bmm
+    time: 04:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 1
+    mem: 5GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/cdhit/slurm-%j.stderr"
+    stdout: "logs/cdhit/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"

@@ -1,7 +1,6 @@
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
   - defaults
 dependencies:
-  - khmer=3.0.0a3
-
+  - cutadapt=2.8
