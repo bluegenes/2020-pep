@@ -7,16 +7,16 @@ import os
 
 # read input files, make sure we're working with a list (even if single file)
 
-log = snakemake.log
+log = str(snakemake.log)
 
 infiles = ([snakemake.input]
         if isinstance(snakemake.input, str)
         else snakemake.input)
 
 
-with open(log, "w"):
+with open(log, "w") as out_log:
     for filename in infiles:
-        log.write("Removing stop (*) from plass contigs " + filename + "\n")
+        out_log.write("Removing stop (*) from plass contigs " + filename + "\n")
         if ".fa" in filename:
             outname = filename.rsplit(".fa", 1)[0] + ".nostop.fa"
         else:

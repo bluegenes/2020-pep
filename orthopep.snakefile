@@ -34,8 +34,8 @@ rule all:
         #expand(os.path.join(out_dir, "preprocess", "cutadapt", "{sample}.polyAabundtrim.fq.gz"), sample=SAMPLES),
         #expand(os.path.join(out_dir, "preprocess", "cutadapt", "{sample}.polyAabundtrim_2.fq.gz"), sample=SAMPLES)
         #expand(os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_2.fq.gz"), sample=SAMPLES)
-        #expand(os.path.join(out_dir, "transdecoder", "{sample}.fasta.transdecoder.pep"), sample=SAMPLES),
-        #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}_search_oh0/results.csv"), sample=SAMPLES, k=ksizes, r=radiuses)
+        expand(os.path.join(out_dir, "transdecoder", "{sample}.fasta.transdecoder.pep"), sample=SAMPLES),
+        expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}_search_oh0/results.csv"), sample=SAMPLES, k=ksizes, r=radiuses),
         #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}_search_oh0/{sample}.cdbg_ids.contigs.fa.gz"), sample=["MMETSP0286"], k=ksizes, r=radiuses)
         #expand(os.path.join(sgc_configdir, "{sample}_k{k}_r{r}.yml"), sample=SAMPLES, k=ksizes, r=radiuses),
         #expand(os.path.join(out_dir, "preprocess", "{sample}_1.polyAtrim.fq.gz"), sample=SAMPLES)
@@ -118,8 +118,8 @@ rule kmer_trim:
         Z = "18",
         C = "3",
     resources:
-        #mem=30000000000 #30GB
-        mem=20000000000 #20GB
+        mem=30000000000 #30GB
+        #mem=20000000000 #20GB
     conda: os.path.join(wrappers_dir, "khmer-env.yml")
     shell:
         """
@@ -224,6 +224,8 @@ rule pear_read_merging:
     conda: os.path.join(wrappers_dir, 'pear-env.yml')
     script: os.path.join(wrappers_dir, 'pear-wrapper.py')
 
+### plass workflow = the next three rules. Going to be used both for main plass assemblies
+### AND for assembling neighborhoods. Pull out --> separate subworkflow
 rule plass:
     input:
         single=os.path.join(out_dir, "preprocess", "pear", '{sample}.pear_assembled.fq.gz')
@@ -242,6 +244,8 @@ rule plass:
     threads: 32
     conda: os.path.join(wrappers_dir, "plass-env.yml")
     script: os.path.join(wrappers_dir, "plass-wrapper.py")
+
+localrules: plass_remove_stop, plass_eliminate_identical_contigs
 
 rule plass_remove_stop:
     input: os.path.join(out_dir, "plass", "{sample}_plass.fa")
@@ -302,11 +306,13 @@ def get_search(w):
     reads=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim.fq.gz")
     return [reads, johnson_pep]
 
+localrules: write_sgc_config
+
 rule write_sgc_config:
     input: get_search
     output: os.path.join(sgc_configdir, "{sample}_k{ksize}_r{radius}.yml"),
     run:
-        configD = {"catlas_base": str(wildcards.sample), "radius": str(wildcards.radius), "ksize": str(wildcards.ksize), "search": list(map(str, input)), "input_sequences": [os.path.join(out_dir, "khmer", str(wildcards.sample) + ".abundtrim.fq.gz")]}
+        configD = {"catlas_base": str(wildcards.sample), "radius": str(wildcards.radius), "ksize": str(wildcards.ksize), "search": list(map(str, input)), "input_sequences": [os.path.join(out_dir, "preprocess", "khmer", str(wildcards.sample) + ".cutpolyA.trim.abundtrim.fq.gz")]}
         with open(str(output), "w") as out:
             yaml.dump(configD, stream=out, indent=2, default_flow_style=False)
 
