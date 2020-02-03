@@ -34,13 +34,14 @@ rule all:
         #expand(os.path.join(out_dir, "preprocess", "cutadapt", "{sample}.polyAabundtrim.fq.gz"), sample=SAMPLES),
         #expand(os.path.join(out_dir, "preprocess", "cutadapt", "{sample}.polyAabundtrim_2.fq.gz"), sample=SAMPLES)
         #expand(os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_2.fq.gz"), sample=SAMPLES)
-        expand(os.path.join(out_dir, "transdecoder", "{sample}.fasta.transdecoder.pep"), sample=SAMPLES),
-        expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}_search_oh0/results.csv"), sample=SAMPLES, k=ksizes, r=radiuses),
+        #expand(os.path.join(out_dir, "transdecoder", "{sample}.fasta.transdecoder.pep"), sample=SAMPLES),
+        #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}_search_oh0/results.csv"), sample=SAMPLES, k=ksizes, r=radiuses),
         #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}_search_oh0/{sample}.cdbg_ids.contigs.fa.gz"), sample=["MMETSP0286"], k=ksizes, r=radiuses)
         #expand(os.path.join(sgc_configdir, "{sample}_k{k}_r{r}.yml"), sample=SAMPLES, k=ksizes, r=radiuses),
         #expand(os.path.join(out_dir, "preprocess", "{sample}_1.polyAtrim.fq.gz"), sample=SAMPLES)
-        expand(os.path.join(out_dir, "plass", "{sample}_plass.cdhit100.fa"), sample=SAMPLES),
-        expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}/first_doms.txt"), sample=SAMPLES, k=ksizes, r=radiuses)
+        #expand(os.path.join(out_dir, "plass", "{sample}_plass.cdhit100.fa"), sample=SAMPLES),
+        #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}/first_doms.txt"), sample=SAMPLES, k=ksizes, r=radiuses),
+        expand(os.path.join(out_dir, "plass", "{sample}_plass.cdhit100.psq"),sample=SAMPLES)
 
 # grab the data
 rule ftp_get_fq:
@@ -228,7 +229,9 @@ rule pear_read_merging:
 ### AND for assembling neighborhoods. Pull out --> separate subworkflow
 rule plass:
     input:
-        single=os.path.join(out_dir, "preprocess", "pear", '{sample}.pear_assembled.fq.gz')
+        left=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_1.fq.gz"),
+        right=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_2.fq.gz"),
+        #single=os.path.join(out_dir, "preprocess", "pear", '{sample}.pear_assembled.fq.gz')
         #left=os.path.join(out_dir, "khmer", "{sample}.abundtrim_1.fq.gz"),
         #right=os.path.join(out_dir, "khmer", "{sample}.abundtrim_2.fq.gz")
     output: 
@@ -239,6 +242,7 @@ rule plass:
         os.path.join(logs_dir, "plass", "{sample}_plass.benchmark")
     params:
         #tmpdir="tmp",
+        min_len=28,
         extra=" -v 3"
     shadow: "shallow"
     threads: 32
@@ -362,3 +366,107 @@ rule spacegraphcats_extract_reads_contigs:
         """
         python -m spacegraphcats {input.config} extract_contigs extract_reads --nolock --outdir={params.outdir}
         """
+
+rule assemble_nbhd:
+    input:
+        os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}_search", "{sample}.cutpolyA.trim.abundtrim.fq.gz.cdbg_ids.reads.fa.gz")
+    output:
+        os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}_search", "{sample}_nbhd_plass.fa")
+    log:
+        os.path.join(logs_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}_nbhd_plass.log")
+    benchmark:
+        os.path.join(logs_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}_nbhd_plass.benchmark")
+    params:
+        #tmpdir="tmp",
+        extra=" -v 3"
+    shadow: "shallow"
+    threads: 8
+    conda: os.path.join(wrappers_dir, "plass-env.yml")
+    script: os.path.join(wrappers_dir, "plass-wrapper.py")
+
+rule plass_nbhd_remove_stop:
+    input: os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}_search", "{sample}_nbhd_plass.fa")
+    output: os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}_search", "{sample}_nbhd_plass.nostop.fa")
+    log: os.path.join(logs_dir, "plass", "{sample}_k{ksize}_r{radius}_nbhd_rm_plass_stop.log")
+    benchmark: os.path.join(logs_dir, "plass", "{sample}_k{ksize}_r{radius}_nbhd_rm_plass_stop.benchmark")
+    conda: os.path.join(wrappers_dir, "khmer-env.yml") # should have screed in it, which is what we need
+    script: os.path.join(wrappers_dir, "remove-stop-plass.py")
+
+rule plass_nbhd_eliminate_identical_contigs:
+    input: os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}_search", "{sample}_nbhd_plass.nostop.fa")
+    output: os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}_search", "{sample}_nbhd_plass.cdhit100.fa")
+    log: os.path.join(logs_dir, "plass", "{sample}_k{ksize}_r{radius}_nbhd_cdhit100.log")
+    benchmark: os.path.join(logs_dir, "plass", "{sample}_k{ksize}_r{radius}_nbhd_cdhit100.benchmark")
+    conda: os.path.join(wrappers_dir, "cdhit-env.yml")
+    shell:
+        """
+         cd-hit -c 1 -i {input} -o  {output}
+        """
+
+rule makeblastdb_plass_assembly:
+    input: 
+        os.path.join(out_dir, "plass", "{sample}_plass.cdhit100.fa")
+    output:
+        os.path.join(out_dir, "plass", "{sample}_plass.cdhit100.psq")
+    log:
+        os.path.join(logs_dir, "blast", "{sample}_plass_makeblastdb.log")
+    benchmark:
+        os.path.join(logs_dir, "blast", "{sample}_plass_makeblastdb.benchmark")
+    params:
+        #prefix = lambda wildcards: input.rsplit(".psq", 1)[0],
+        prefix = lambda w: "{w.sample}_plass.cdhit100",
+    threads: 4
+    conda: os.path.join(wrappers_dir, "blast-env.yml")
+    shell:
+        """
+        makeblastdb -in {input} -dbtype prot -out {params.prefix}  -num_threads {threads}
+        """
+
+rule blast_nbhd_x_plass_assembly:
+    input:
+        nbhd_assembly=os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}_search", "{sample}_nbhd_plass.cdhit100.fa"),
+        full_assembly=os.path.join(out_dir, "plass", "{sample}_plass.cdhit100")
+    output:
+        os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}_search", "{sample}_nbhd_x_assembly.fa")
+    log: 
+        os.path.join(logs_dir, "blast", "{sample}_k{ksize}_r{radius}_nbhd_x_assembly.log")
+    benchmark:
+        os.path.join(logs_dir, "blast", "{sample}_k{ksize}_r{radius}_nbhd_x_assembly.benchmark")
+    conda: os.path.join(wrappers_dir, "blast-env.yml")
+    shell:
+        """
+        blastp -query cow.small.faa -db human.1.protein.faa
+        blastn –db nt –query nt.fsa –out results.out  
+
+        blastp {nbhd_assembly} {full_assembly}
+        """
+
+rule compute_nbhd:
+    input: os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}_search", "{sample}_nbhd_plass.cdhit100.fa")
+    output: os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}_search", "{sample}_nbhd_plass.cdhit100.sig")
+    params:
+        k=[31],
+        scaled=2000,
+        compute_moltypes=["protein", "dayhoff", "hp"],
+        input_is_protein=True,
+        track_abundance=True,
+    log: os.path.join(logs_dir, "sourmash", "{sample}_k{ksize}_r{radius}_nbhd_plass_compute.log")
+    benchmark: os.path.join(logs_dir, "sourmash", "{sample}_k{ksize}_r{radius}_nbhd_plass_compute.benchmark")
+    conda: "sourmash-3.1.0.yml"
+    script: "sourmash-compute.wrapper.py"
+
+# build all compare matrices: np and csv output
+#rule sourmash_compare:
+#    input: sigs=expand(os.path.join(compute_dir, "{sample}.sig"), sample= SAMPLES)
+#    output:
+#        np=os.path.join(compare_dir, "mmetsp_k{k}_{encoding}_compare.np"),
+#        csv=os.path.join(compare_dir, "mmetsp_k{k}_{encoding}_compare.csv")
+#    params:
+#        include_encodings = lambda w: f"{w.encoding}",
+#        exclude_encodings = ["nucl", "protein", "dayhoff", "hp"], # this will exclude everything except for included encoding
+#        k = lambda w: f"{w.k}",
+#    log: os.path.join(logs_dir, "mmetsp_k{k}_{encoding}_compare.log")
+#    benchmark: os.path.join(logs_dir, "mmetsp_k{k}_{encoding}_compare.benchmark")
+#    conda: "sourmash-3.1.0.yml"
+#    script: "sourmash-compare.wrapper.py"
+

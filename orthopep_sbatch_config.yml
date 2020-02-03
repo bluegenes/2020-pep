@@ -1,4 +1,7 @@
 # cluster_config.yml - cluster configuration
+## NOTE: if slurm log folder doesn't exist, job will FAIL
+## the folders below must (currently) be manually created
+## bc they need to be used before snakemake would make them
 __default__:
     partition: bmm
     time: 02:00:00 # time limit for each job
@@ -101,9 +104,9 @@ pear_read_merging:
     jobname: "{rule}.w{wildcards}"
 plass:
     partition: bmm
-    time: 1-00:00:00 # time limit for each job
+    time: 6:00:00 # time limit for each job
     nodes: 1
-    cpus_per_task: 32
+    cpus_per_task: 4
     mem: 20GB
     chdir: /home/ntpierce/2020-pep/orthopep_out
     stderr: "logs/plass/slurm-%j.stderr"
@@ -159,3 +162,14 @@ plass_eliminate_identical_contigs:
     stderr: "logs/cdhit/slurm-%j.stderr"
     stdout: "logs/cdhit/slurm-%j.stdout"
     jobname: "{rule}.w{wildcards}"
+makeblastdb_plass_assembly:
+    partition: bmm
+    time: 01:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 1
+    mem: 2GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/blast/slurm-%j.stderr"
+    stdout: "logs/blast/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+

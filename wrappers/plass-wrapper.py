@@ -8,6 +8,8 @@ __license__ = "MIT"
 from os import path
 from snakemake.shell import shell
 
+min_len = int(snakemake.params.get("min_len", 45)) # 45 is plass default
+min_len_cmd = f" --min-length {min_len} "
 extra = snakemake.params.get("extra", "")
 
 # allow multiple input files for single assembly
@@ -52,5 +54,5 @@ tmpdir = snakemake.params.get("tmpdir", path.join(outdir, "tmp"))
 log = snakemake.log_fmt_shell(stdout=True, stderr=True)
 
 shell(
-    "plass assemble {input_cmd} {snakemake.output} {tmpdir} --threads {snakemake.threads} {snakemake.params.extra} {log}"
+    "plass assemble {input_cmd} {snakemake.output} {tmpdir} {min_len_cmd} --threads {snakemake.threads} {snakemake.params.extra} {log}"
 )
