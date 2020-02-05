@@ -3,5 +3,4 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - paladin=1.4.4
-  - samtools=1.10
+  - salmon=1.1.0

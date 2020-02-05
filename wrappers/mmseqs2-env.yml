@@ -3,5 +3,5 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - paladin=1.4.4
+  - mmseqs2=10.6d92c
   - samtools=1.10

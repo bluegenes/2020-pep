@@ -375,7 +375,7 @@ rule assemble_nbhd:
         min_len=20,
         extra=" -v 3"
     #shadow: "shallow"
-    threads: 32
+    threads: 10
     conda: os.path.join(wrappers_dir, "plass-env.yml")
     script: os.path.join(wrappers_dir, "plass-wrapper.py")
 
