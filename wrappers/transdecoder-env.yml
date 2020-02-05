@@ -4,5 +4,6 @@ channels:
   - defaults
 dependencies:
   - transdecoder=5.5.0
-  - seqlogo
+  - bioconductor-seqlogo 
   - conda-forge::r-ggplot2
+
