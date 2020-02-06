@@ -182,4 +182,14 @@ assemble_nbhd:
     stderr: "logs/plass/slurm-%j.stderr"
     stdout: "logs/plass/slurm-%j.stdout"
     jobname: "{rule}.w{wildcards}"
+paladin_map_sgc_contigs_x_plass:
+    partition: bmm
+    time: 1:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 20
+    mem: 10GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/paladin/slurm-%j.stderr"
+    stdout: "logs/paladin/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
 

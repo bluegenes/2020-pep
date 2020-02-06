@@ -12,7 +12,7 @@ FTP = FTPRemoteProvider()
 sample_namelist = config.get("samplelist", "ten_haptophytes.txt")
 SAMPLES = [x.strip().split('\t')[0] for x in open(sample_namelist, "r")]
 #SAMPLES.remove("MMETSP0090")
-SAMPLES = ["MMETSP0090"]
+#SAMPLES = ["MMETSP0090"]
 
 info_csv = config.get("info_csv", "all_mmetsp_elvers.csv")
 samplesDF = read_samples(info_csv)
@@ -26,6 +26,7 @@ pep_dir="/home/ntpierce/2019-burgers-shrooms/mmetsp_info/mmetsp_pep"
 
 ksizes= config.get("ksizes", ["31"])
 radiuses= config.get("radiuses", ["1"])
+
 
 rule all:
     input: 
@@ -42,7 +43,8 @@ rule all:
         #expand(os.path.join(out_dir, "plass", "{sample}_plass.cdhit100.fa"), sample=SAMPLES),
         #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}/first_doms.txt"), sample=SAMPLES, k=ksizes, r=radiuses),
         #expand(os.path.join(out_dir, "blast", "{sample}_plass.cdhit100.psq"),sample=SAMPLES)
-        expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}_search_oh0", "{sample}_nbhd_x_assembly.out6"), sample=SAMPLES, k=ksizes, r=radiuses)
+        expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}", "{sample}_sgc_contigs_x_plass.paladin.sort.bam{end}"), sample=SAMPLES, k=ksizes, r=radiuses, end=[".bai", ".flagstat"]),
+        #expand(os.path.join(out_dir, "plass", "{sample}_split", "split_fasta.done"), sample=SAMPLES)
 
 # grab the data
 rule ftp_get_fq:
@@ -302,7 +304,7 @@ def get_search(w):
         johnson_pep=os.path.join(pep_dir, f"{w.sample}.trinity_out_2.2.0.Trinity.fasta.transdecoder.pep")
     plass_pep=os.path.join(out_dir, "plass", f"{w.sample}_plass.fa")
     reads=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim.fq.gz")
-    return [reads, johnson_pep]
+    return [reads, johnson_pep, plass_pep]
 
 localrules: write_sgc_config
 
@@ -318,6 +320,7 @@ rule spacegraphcats_build:
     input:
         reads=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim.fq.gz"),
         config=os.path.join(sgc_configdir, "{sample}_k{ksize}_r{radius}.yml"),
+        plass_pep=rules.plass_eliminate_identical_contigs.output
     output:
         # this one confuses snakemake bc it doesn't have the radius wildcard
         #os.path.join(out_dir, "spacegraphcats", "{sample}/bcalm.{sample}.k{size}.unitigs.fa"),
@@ -450,6 +453,8 @@ rule compute_nbhd:
     benchmark: os.path.join(logs_dir, "sourmash", "{sample}_k{ksize}_r{radius}_nbhd_plass_compute.benchmark")
     conda: "sourmash-3.1.0.yml"
     script: "sourmash-compute.wrapper.py"
+
+include: "nhbds.snakefile"
 
 # build all compare matrices: np and csv output
 #rule sourmash_compare:
