@@ -6,6 +6,7 @@ __email__ = "ntpierce@gmail.com"
 __license__ = "MIT"
 
 
+import os
 # this wrapper temporarily copies your assembly into the output dir
 # so that all the paladin output files end up in the desired spot
 
@@ -23,6 +24,9 @@ ref_type_cmd = '-r' + str(reference_type)
 
 output_base = paladin_index.rsplit('.bwt')[0]
 
-shell("cp {input_assembly} {output_base}")
-shell("paladin index {ref_type_cmd} {output_base} {annotation} {extra} {log}" )
-shell("rm -f {output_base}")
+if (not input_assembly == output_base):
+    shell("cp {input_assembly} {output_base}")
+    shell("paladin index {ref_type_cmd} {output_base} {annotation} {extra} {log}" )
+    shell("rm -f {output_base}")
+else:
+    shell("paladin index {ref_type_cmd} {output_base} {annotation} {extra} {log}" )

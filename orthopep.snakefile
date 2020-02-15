@@ -32,9 +32,6 @@ rule all:
     input: 
         #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}/first_doms.txt"), sample=SAMPLES, k=ksizes, r=radiuses),
         #expand(os.path.join(out_dir, "plass", "{sample}_plass.fa"), sample=SAMPLES),
-        #expand(os.path.join(out_dir, "preprocess", "cutadapt", "{sample}.polyAabundtrim.fq.gz"), sample=SAMPLES),
-        #expand(os.path.join(out_dir, "preprocess", "cutadapt", "{sample}.polyAabundtrim_2.fq.gz"), sample=SAMPLES)
-        #expand(os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_2.fq.gz"), sample=SAMPLES)
         #expand(os.path.join(out_dir, "transdecoder", "{sample}_trinity.transdecoder.pep"), sample=SAMPLES),
         #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}_search_oh0/results.csv"), sample=SAMPLES, k=ksizes, r=radiuses),
         #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}_search_oh0/{sample}.cdbg_ids.contigs.fa.gz"), sample=["MMETSP0286"], k=ksizes, r=radiuses)
@@ -43,114 +40,21 @@ rule all:
         #expand(os.path.join(out_dir, "plass", "{sample}_plass.cdhit100.fa"), sample=SAMPLES),
         #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}/first_doms.txt"), sample=SAMPLES, k=ksizes, r=radiuses),
         #expand(os.path.join(out_dir, "blast", "{sample}_plass.cdhit100.psq"),sample=SAMPLES)
-        expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}", "{sample}_sgc_contigs_x_plass.paladin.sort.bam{end}"), sample=SAMPLES, k=ksizes, r=radiuses, end=[".bai", ".flagstat"]),
+        #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}", "{sample}_sgc_contigs_x_plass.paladin.sort.bam{end}"), sample=SAMPLES, k=ksizes, r=radiuses, end=[".bai", ".flagstat"]),
         #expand(os.path.join(out_dir, "plass", "{sample}_split", "split_fasta.done"), sample=SAMPLES)
+        #expand(os.path.join(out_dir, "cdhit", "{sample}_plass_cdhit{perc_id}.fa"), sample=SAMPLES, perc_id=[".95", ".97", ".85", ".80", ".70"])
+        expand(os.path.join(out_dir, "plass", "{sample}_plass_cdhit100_scaled{scaled}.sig"), sample=SAMPLES, scaled= ["1", "50", "200", "500", "1000","2000"])
 
-# grab the data
-rule ftp_get_fq:
-    output: 
-        r1=os.path.join(data_dir,"{sample}_1.fq.gz"),
-        r2=os.path.join(data_dir,"{sample}_2.fq.gz")
-    log: os.path.join(logs_dir,"get_data", "{sample}.log")
-    conda: os.path.join(wrappers_dir, "sratools-env.yml")
-    params: 
-        srr=lambda wildcards: samplesDF.loc[wildcards.sample]['unit'],
-        out_dir=data_dir,
-        compression_level="-9"
-    shadow: "shallow"
-    threads: 9
-    shell:
-        """
-        fasterq-dump {params.srr} -O {params.out_dir} -e {threads} -p > {log} 2>&1
-        pigz -c -p {threads} {params.compression_level} {params.out_dir}/{params.srr}_1.fastq > {output.r1}
-        pigz -c -p {threads} {params.compression_level} {params.out_dir}/{params.srr}_2.fastq > {output.r2}
-        rm -rf {params.out_dir}/{params.srr}_*.fastq
-        """
 
-#adapter_file= "https://raw.githubusercontent.com/timflutre/trimmomatic/master/adapters/TruSeq3-PE.fa"
-#rule grab_adapters:
-#    input: HTTP.remote(adapter_file, static=True, keep_local=True, allow_redirects=True)
-#    output: os.path.join(wrappers_dir, "TruSeq3-PE.fa")
-#    log: os.path.join(logs_dir, "get_data", "download_adapters.log")
-#    shell: "mv {input} {output} 2> {log}"
-rule polyA_trim:
-    input:
-        r1 = os.path.join(data_dir, "{sample}_1.fq.gz"),
-        r2 = os.path.join(data_dir, "{sample}_2.fq.gz"),
-    output:
-        r1=os.path.join(out_dir, "preprocess", "cutadapt", "{sample}_1.cutpolyA.fq.gz"),
-        r2=os.path.join(out_dir, "preprocess", "cutadapt", "{sample}_2.cutpolyA.fq.gz"),
-    log: os.path.join(logs_dir, "cutadapt", "{sample}_pe.log")
-    benchmark: os.path.join(logs_dir, "cutadapt", "{sample}_pe.benchmark")
-    threads: 20
-    conda: os.path.join(wrappers_dir, "cutadapt-env.yml")
-    shell:
-        """
-        cutadapt -a 'A{{10}}' -A 'A{{10}}' --cores {threads} --minimum-length 31 -o {output.r1} -p {output.r2} {input.r1} {input.r2}
-        """
+subworkflow preprocess:
+    snakefile: "preprocess.snakefile"
+    configfile: "dummy_config.yml"
 
-rule adapter_trim:
-    input:
-        r1=os.path.join(out_dir, "preprocess", "cutadapt", "{sample}_1.cutpolyA.fq.gz"),
-        r2=os.path.join(out_dir, "preprocess", "cutadapt", "{sample}_2.cutpolyA.fq.gz"),
-        adapters = os.path.join(wrappers_dir, "TruSeq3-PE.fa")
-    output:
-        r1 = os.path.join(out_dir, "preprocess", "trimmomatic", "{sample}_1.cutpolyA.trim.fq.gz"),
-        r2 = os.path.join(out_dir, "preprocess", "trimmomatic", "{sample}_2.cutpolyA.trim.fq.gz"),
-        r1_unpaired = os.path.join(out_dir, "preprocess", "trimmomatic", "{sample}_1.cutpolyA.trimse.fq.gz"),
-        r2_unpaired = os.path.join(out_dir, "preprocess", "trimmomatic","{sample}_2.cutpolyA.trimse.fq.gz"),
-    log: os.path.join(logs_dir, "trimmomatic", "{sample}_pe.log")
-    benchmark: os.path.join(logs_dir, "trimmomatic", "{sample}_pe.benchmark")
-    threads: 32
-    params:
-        trimmer=["ILLUMINACLIP:wrappers/TruSeq3-PE.fa:2:0:15 LEADING:2 TRAILING:2 SLIDINGWINDOW:4:2 MINLEN:31"],
-        compression_level="-9"
-    conda: os.path.join(wrappers_dir, "trimmomatic-env.yml")
-    script: os.path.join(wrappers_dir, "trimmomatic-pe.py")
-
-rule kmer_trim:
-    input:
-        os.path.join(out_dir, "preprocess", "trimmomatic", "{sample}_1.cutpolyA.trim.fq.gz"),
-        os.path.join(out_dir, "preprocess", "trimmomatic", "{sample}_2.cutpolyA.trim.fq.gz"),
-    output:
-        paired=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim.fq.gz"),
-        single=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim.se.fq.gz")
-    log: os.path.join(logs_dir, "khmer", "{sample}_abundtrim.log")
-    benchmark: os.path.join(logs_dir, "khmer", "{sample}_abundtrim.benchmark")
-    params:
-        k = "20",
-        Z = "18",
-        C = "3",
-    resources:
-        mem=30000000000 #30GB
-        #mem=20000000000 #20GB
-    conda: os.path.join(wrappers_dir, "khmer-env.yml")
-    shell:
-        """
-        interleave-reads.py {input} | trim-low-abund.py -V -k {params.k} -Z {params.Z} -C {params.C} -M {resources.mem} - -o - | \
-        (extract-paired-reads.py --gzip -p {output.paired} -s {output.single}) > {log} 2>&1
-        """
-
-rule split_pairs:
-    input:
-        os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim.fq.gz")
-    output:
-        r1=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_1.fq.gz"),
-        r2=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_2.fq.gz"),
-        orphans=os.path.join(out_dir, "preprocess", "cutadapt", "{sample}.cutpolyA.trim.abundtrim_orphans.fq.gz")
-    conda: os.path.join(wrappers_dir, "khmer-env.yml")
-    log: os.path.join(logs_dir, "khmer", "{sample}_polyAabundtrim_split_pairs.log")
-    benchmark: os.path.join(logs_dir, "khmer", "{sample}_polyAabundtrim_split_pairs.benchmark")
-    threads: 3
-    shell:
-        """
-        split-paired-reads.py {input} --gzip -1 {output.r1} -2 {output.r2} -0 {output.orphans} > {log} 2>&1
-        """
 
 rule trinity:
     input:
-        left=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_1.fq.gz"),
-        right=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_2.fq.gz"),
+        left=preprocess(os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_1.fq.gz")),
+        right=preprocess(os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_2.fq.gz")),
     output: 
         fasta=os.path.join(out_dir, "trinity", "{sample}_trinity.fa"),
         gene_trans_map=os.path.join(out_dir, "trinity", "{sample}_trinity.gene_trans_map")
@@ -209,8 +113,8 @@ rule pear_read_merging:
     Merge PE reads with PEAR, for input into PLASS
     """
     input:
-        r1=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_1.fq.gz"),
-        r2=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_2.fq.gz"),
+        r1=preprocess(os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_1.fq.gz")),
+        r2=preprocess(os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_2.fq.gz")),
     output:
         assembled = os.path.join(out_dir, "preprocess", "pear", '{sample}.pear_assembled.fq.gz'),
         discarded = os.path.join(out_dir, "preprocess", "pear", '{sample}.pear_discarded.fq.gz'),
@@ -233,8 +137,8 @@ rule pear_read_merging:
 ### AND for assembling neighborhoods. Pull out --> separate subworkflow
 rule plass:
     input:
-        left=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_1.fq.gz"),
-        right=os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_2.fq.gz"),
+        left=preprocess(os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_1.fq.gz")),
+        right=preprocess(os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_2.fq.gz")),
     output: 
         os.path.join(out_dir, "plass", "{sample}_plass.fa")
     log: 
@@ -273,27 +177,81 @@ rule plass_eliminate_identical_contigs:
 
 rule cluster_plass:
     input: os.path.join(out_dir, "plass", "{sample}_plass.fa")
-    output: os.path.join(out_dir, "cdhit", "{sample}_plass_p{perc_id}.clstr")
-    log: os.path.join(logs_dir, "cdhit", "{sample}_plass_p{perc_id}.log")
-    benchmark: os.path.join(logs_dir, "cdhit", "{sample}_plass_p{perc_id}.benchmark")
-    resources: mem_mb=16000 # 16GB
+    output: os.path.join(out_dir, "cdhit", "{sample}_plass_cdhit{perc_id}.fa")
+    log: os.path.join(logs_dir, "cdhit", "{sample}_plass_cdhit{perc_id}.log")
+    benchmark: os.path.join(logs_dir, "cdhit", "{sample}_plass_cdhit{perc_id}.benchmark")
+    resources: 
+        mem_mb=16000 # 16GB
     threads: 10
     params:
         coverage=60,
-        perc_id=lambda w: {wildcards.perc_id},
+        perc_id=lambda w: {w.perc_id},
         word_size=5, # 5 for thresholds 0.7->1.0
-        prefix=lambda wildcards: os.path.dirname(output),
+        #prefix=lambda w: os.path.dirname(output),
         extra=""
     conda: os.path.join(wrappers_dir, "cdhit-env.yml")
     shell:
         """
-         cd-hit -i {input} -o {params.prefix} -c {params.perc_id} -n {params.word_size}  -d 0 -aS {params.coverage}
-         -aL {params.coverage} -T {threads} -M {resources.mem_mb} -o {params.prefix}  {params.extra} &> {log}
-         mv {params.prefix} {output[0]} 2>> {log}
+         cd-hit -i {input} -o {output} -c {params.perc_id} -T {threads} -M {resources.mem_mb} {params.extra} &> {log}
         """
-         #other options
-         #cd-hit -i {input} -o essMarkerGenes/marker-{wildcards.marker}_cd-hit -c {CDHIT_PERC} -d 0 -T {THREADS}
-         #cd-hit-est -o cdhit -c 0.98 -i Trinity.fasta -p 1 -d 0 -b 3 -T 10
+         #cd-hit -i {input} -o {output} -c {params.perc_id} -n {params.word_size}  -d 0 -aS {params.coverage} \
+         #-aL {params.coverage} -T {threads} -M {resources.mem_mb} {params.extra} &> {log}
+        #mv {params.prefix} {output[0]} 2>> {log}
+
+rule sourmash_compute_plass:
+    input: rules.plass_eliminate_identical_contigs.output 
+    output: os.path.join(out_dir, "plass", "{sample}_plass_cdhit100_scaled{scaled}.sig")
+    params:
+        k=[5,7,11,13,15,17,19,21],
+        scaled= lambda w: w.scaled,
+        compute_moltypes=["protein", "dayhoff", "hp"],
+        input_is_protein=True,
+        track_abundance=True,
+    log: os.path.join(logs_dir, "sourmash", "{sample}_plass_cdhit100_scaled{scaled}_compute.log")
+    benchmark: os.path.join(logs_dir, "sourmash", "{sample}_plass_cdhit100_scaled{scaled}_compute.benchmark")
+    conda: os.path.join(wrappers_dir, "sourmash-3.2.2.yml")
+    script: os.path.join(wrappers_dir, "sourmash-compute.wrapper.py")
+
+# build all compare matrices: np and csv output
+rule plass_sourmash_compare_cosine: # use abundances
+    input: sigs=expand(os.path.join(out_dir, "plass", "{sample}_plass_cdhit100_scaled{{scaled}}.sig"), sample=SAMPLES)
+    output:
+        np=os.path.join(out_dir, "plass", "sourmash", "plass100_scaled{scaled}_k{k}_{encoding}_cosine_compare.np")
+        csv=os.path.join(out_dir, "plass", "sourmash", "plass100_scaled{scaled}_k{k}_{encoding}_cosine_compare.csv")
+    params:
+        include_encodings = lambda w: f"{w.encoding}",
+        exclude_encodings = ["nucl", "protein", "dayhoff", "hp"], # this will exclude everything except for included encoding
+        k = lambda w: f"{w.k}",
+    log: os.path.join(logs_dir, "sourmash", "plass100_scaled{scaled}_k{k}_{encoding}_cosine_compare.log")
+    benchmark: os.path.join(logs_dir, "sourmash", "plass100_scaled{scaled}_k{k}_{encoding}_cosine_compare.benchmark")
+    conda: os.path.join(wrappers_dir, "sourmash-3.2.2.yml")
+    script: os.path.join(wrappers_dir, "sourmash-compare.wrapper.py")
+
+rule plass_sourmash_compare_jaccard: # ignore abundances
+    input: sigs=expand(os.path.join(out_dir, "plass", "{sample}_plass_cdhit100_scaled{{scaled}}.sig"), sample=SAMPLES)
+    output:
+        np=os.path.join(out_dir, "plass", "sourmash", "plass100_scaled{scaled}_k{k}_{encoding}_jaccard_compare.np")
+        csv=os.path.join(out_dir, "plass", "sourmash", "plass100_scaled{scaled}_k{k}_{encoding}_jaccard_compare.csv")
+    params:
+        ignore_abundance=True,
+        include_encodings = lambda w: w.encoding,
+        exclude_encodings = ["nucl", "protein", "dayhoff", "hp"], # this will exclude everything except for included encoding
+        k = lambda w: w.k,
+    log: os.path.join(logs_dir, "sourmash", "plass100_scaled{scaled}_k{k}_{encoding}_jaccard_compare.log")
+    benchmark: os.path.join(logs_dir, "sourmash", "plass100_scaled{scaled}_k{k}_{encoding}_jaccard_compare.benchmark")
+    conda: os.path.join(wrappers_dir, "sourmash-3.2.2.yml")
+    script: os.path.join(wrappers_dir, "sourmash-compare.wrapper.py")
+
+rule compare_tsne:
+    #input: rules.sourmash_compare_jaccard.output.csv
+    input: rules.plass_sourmash_compare_jaccard.output.csv
+    #output: os.path.join(out_dir, "tsne", "codingpep_k{k}_{encoding}_jaccard_tsne.pdf")
+    output: os.path.join(out_dir, "tsne", "codingpep_k{k}_{encoding}_jaccard_tsne.pdf")
+        #report("plots/celltype-tsne.seed={seed}.pdf", caption="../report/celltype-tsne.rst", category="Dimension Reduction")
+    log: os.path.join(logs_dir, "codingpep_k{k}_{encoding}_jaccard_tsne.log")
+    benchmark: os.path.join(logs_dir, "codingpep_k{k}_{encoding}_jaccard_tsne.benchmark")
+    conda: os.path.join(wrappers_dir, "sklearn.yml")
+    script: os.path.join(wrappers_dir, "tsne.py")
 
 def get_search(w):
     #most: MMETSP0224.trinity_out_2.2.0.Trinity.fasta.transdecoder.pep
@@ -454,7 +412,7 @@ rule compute_nbhd:
     conda: "sourmash-3.1.0.yml"
     script: "sourmash-compute.wrapper.py"
 
-include: "nhbds.snakefile"
+#include: "nhbds.snakefile"
 
 # build all compare matrices: np and csv output
 #rule sourmash_compare:

@@ -28,8 +28,9 @@ ksizes= config.get("ksizes", ["31"])
 radiuses= config.get("radiuses", ["1"])
 
 
-#rule all:
-#    input:
+rule all:
+    input:
+        expand(os.path.join(out_dir, "mmseqs2", "{sample}_sgc_k{k}_r{r}_x_plass.mmap.sam"), sample=SAMPLES, k=ksizes, r=radiuses)
         #expand(os.path.join(out_dir, "plass", "{sample}_plass.cdhit100.fa"), sample=SAMPLES),
         #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}/first_doms.txt"), sample=SAMPLES, k=ksizes, r=radiuses),
         #expand(os.path.join(out_dir, "blast", "{sample}_plass.cdhit100.psq"),sample=SAMPLES)
@@ -102,11 +103,10 @@ rule plass_paladin_index:
     conda: os.path.join(wrappers_dir, "paladin-env.yml")
     script: os.path.join(wrappers_dir, 'paladin-index.py')
 
-
 rule paladin_map_sgc_contigs_x_plass:
     input:
         index=rules.plass_paladin_index.output,
-        r= os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}", "contigs.fa.gz"),
+        r=os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}", "contigs.fa.gz"),
     output:
         os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}", "{sample}_sgc_contigs_x_plass.paladin.bam")
     conda: os.path.join(wrappers_dir, "paladin-env.yml")
@@ -134,6 +134,61 @@ rule paladin_map_search_reads_x_plass_assembly:
         extra = "",
     conda: os.path.join(wrappers_dir, "paladin-env.yml")
     script: os.path.join(wrappers_dir, 'paladin-align.py')
+
+
+rule mmseqs_createdb_plass:
+   input: os.path.join(out_dir, "plass", "{sample}_plass.fa")
+   output: os.path.join(out_dir, "plass", "{sample}_plass.mmseqsDB") 
+   log: os.path.join(logs_dir, "mmseqs2", "{sample}_plass.createDB.log")
+   benchmark: os.path.join(logs_dir, "mmseqs2", "{sample}_plass.createDB.benchmark")
+   conda: os.path.join(wrappers_dir, "mmseqs2-env.yml")
+   shell:
+       """
+       mmseqs createdb {input} {output}
+       """
+
+rule mmseqs_createdb_sgc_contigs:
+   input: os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}", "contigs.fa.gz") 
+   output: os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}", "contigs.mmseqsDB") 
+   log: os.path.join(logs_dir, "mmseqs", "{sample}_k{ksize}_r{radius}_contigs.createDB.log")
+   benchmark: os.path.join(logs_dir, "mmseqs", "{sample}_k{ksize}_r{radius}_contigs.createDB.benchmark")
+   conda: os.path.join(wrappers_dir, "mmseqs2-env.yml")
+   shell:
+       """
+       mmseqs createdb {input} {output} tmp
+       """
+
+rule mmseqs_map:
+# https://github.com/soedinglab/MMseqs2/wiki#mapping-very-similar-sequences-using-mmseqs-map
+# also cluster w/ linclust: mmseqs linclust inDB outDB tmp OR rbh
+    input: 
+        plass=os.path.join(out_dir, "plass", "{sample}_plass.mmseqsDB"),
+        sgc=os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}", "contigs.mmseqsDB")
+    output: os.path.join(out_dir, "mmseqs2","{sample}_sgc_k{ksize}_r{radius}_x_plass.mmap.resultsDB"),
+    log: os.path.join(logs_dir, "mmseqs2", "{sample}_sgc_k{ksize}_r{radius}_x_plass.mmap.log")
+    benchmark: os.path.join(logs_dir, "mmseqs2", "{sample}_sgc_k{ksize}_r{radius}_x_plass.mmap.benchmark")
+    conda: os.path.join(wrappers_dir, "mmseqs2-env.yml")
+    shell:
+        """
+        mmseqs map {input.sgc} {input.plass} resultDB tmp
+        """
+
+rule mmseqs_results_to_sam:
+    input: 
+        target_db=os.path.join(out_dir, "plass", "{sample}_plass.mmseqsDB"),
+        query_db=os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}", "contigs.mmseqsDB"),
+        results_db=rules.mmseqs_map.output
+    output: os.path.join(out_dir, "mmseqs2", "{sample}_sgc_k{ksize}_r{radius}_x_plass.mmap.sam"),
+    log: os.path.join(logs_dir, "mmseqs2", "{sample}_sgc_k{ksize}_r{radius}_x_plass.convert.log")
+    benchmark: os.path.join(logs_dir, "mmseqs2", "{sample}_sgc_k{ksize}_r{radius}_x_plass.convert.benchmark")
+    conda: os.path.join(wrappers_dir, "mmseqs2-env.yml")
+    threads: 2
+    shell:
+        """
+        mmseqs convertalis --threads {threads} --format-mode 1 {input.query_db} {input.target_db} {input.results_db} {output}
+        """
+# mmseqs extractorfs YourCrassphageDB crassphageOrfs --min-length
+# http://wwwuser.gwdg.de/~compbiol/molbio_course/2018/worksheet-day2.pdf
 
 # make a samtools env instead of putting it in paladin (will use for mmseqs2 output as well)
 rule samtools_sort_paladin:
@@ -170,6 +225,18 @@ rule samtools_index_paladin:
     shell:"""
     samtools index {input}
     """
+
+#rule paladin_quant:
+#    input:
+#        assembly="outputs/cd-hit95/{nbhd}.cdhit95.faa",
+#        bam=os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}", "{sample}_sgc_contigs_x_plass.paladin.sort.bam")
+#    output: os.path.join(out_dir, "salmon", "{nhbd}_quant/quant.sf")
+#    params:
+#        out="outputs/salmon/{nbhd}_quant"
+#    conda: "salmon-env.yml"
+#    shell:'''
+#    salmon quant -t {input.cdhit} -l A -a {input.bam} -o {params.out}
+#    '''
 
 ## do something like this?
 # https://github.com/taylorreiter/hu-snake/blob/6dadc5f4f230f89a93f4855523cb213213462b12/PLASS/variant_snakemake/Snakefile

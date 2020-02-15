@@ -8,7 +8,7 @@ __default__:
     nodes: 1
     cpus_per_task: 1 
     mem: 1GB
-    chdir: /home/ntpierce/2019-protein-work
+    chdir: /home/ntpierce/2020-pep/orthopep_out
     stderr: "logs/slurm-%j.stderr"
     stdout: "logs/slurm-%j.stdout"
     jobname: "{rule}.w{wildcards}"
@@ -162,6 +162,16 @@ plass_eliminate_identical_contigs:
     stderr: "logs/cdhit/slurm-%j.stderr"
     stdout: "logs/cdhit/slurm-%j.stdout"
     jobname: "{rule}.w{wildcards}"
+cluster_plass:
+    partition: bmm
+    time: 04:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 4
+    mem: 4GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/cdhit/slurm-%j.stderr"
+    stdout: "logs/cdhit/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
 makeblastdb_plass_assembly:
     partition: bmm
     time: 01:00:00 # time limit for each job
@@ -191,5 +201,25 @@ paladin_map_sgc_contigs_x_plass:
     chdir: /home/ntpierce/2020-pep/orthopep_out
     stderr: "logs/paladin/slurm-%j.stderr"
     stdout: "logs/paladin/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+extract_coding:
+    partition: bmm
+    time: 10:00:00 # time limit for each job
+    nodes: 1
+    cpus_per_task: 1
+    mem: 1GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/khtools/slurm-%j.stderr"
+    stdout: "logs/khtools/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+sourmash_compute_plass:
+    partition: bmm
+    time: 6:00:00 
+    nodes: 1
+    cpus_per_task: 1
+    mem: 1GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/sourmash/slurm-%j.stderr"
+    stdout: "logs/sourmash/slurm-%j.stdout"
     jobname: "{rule}.w{wildcards}"
 
