@@ -15,10 +15,11 @@ sigs = snakemake.input
 assert sigs is not None, "signatures are required as input"
 min_count = int(snakemake.params.get("min_count", 2))
 scaled = int(snakemake.params.get("scaled", 1)) # default scaled=1 keeps all hashes
-#ksize = int(snakemake.params.get("ksize", 7))
-#moltype = snakemake.params.get("molecule", "protein")
+# if these are not set, assume multiple ksizes/moltypes per file, do for each
+ksize = int(snakemake.params.get("ksize"))
+moltype = snakemake.params.get("molecule")
 
-#outhashes = str(snakemake.output.hashes)
+outhashes = str(snakemake.output.hashes)
 outsig = str(snakemake.output.sig)
 
 all_mins = {"protein":{},"dayhoff":{}, "hp":{}, "DNA":{} }
@@ -27,29 +28,33 @@ all_mins = {"protein":{},"dayhoff":{}, "hp":{}, "DNA":{} }
 for sigfile in sigs:
     if os.path.getsize(sigfile) > 0:
         sigfp = open(sigfile, 'rt')
-        siglist = list(signature.load_signatures(sigfp))  ### since I store mult k in same file --> work with single ksize here??
-        # here, we need to make counters by ksize and molecule type. Set these as params, rather than doing all in this script
-        #loaded_sig = siglist[1]
+        siglist = list(signature.load_signatures(sigfp))
         for sig in siglist:
-            ksize = sig.minhash.ksize
-            is_protein = sig.minhash.is_protein
-            if is_protein:
-                moltype="protein"
+            # ksize
+            sig_ksize = sig.minhash.ksize
+            if ksize: # if we set a single ksize in the params
+                if sig_ksize != ksize:
+                    continue
+            # moltype
+            if sig.minhash.is_protein:
+                sig_moltype="protein"
             else:
                 if sig.minhash.dayhoff:
-                    moltype="dayhoff"
+                    sig_moltype="dayhoff"
                 elif sig.minhash.hp:
-                    moltype="hp"
+                    sig_moltype="hp"
                 else:
-                    moltype="DNA"
+                    sig_moltype="DNA"
+            if moltype:
+                if sig_moltype != moltype:
+                    continue
             print(f"molecule: {moltype}, ksize: {ksize}")
             mins = sig.minhash.get_mins() # Get the minhashes
-            if ksize in all_mins[moltype].keys():
-                prev_mins = all_mins[moltype][ksize]
-                all_mins[moltype][ksize] = prev_mins + mins
+            if sig_ksize in all_mins[sig_moltype].keys():
+                prev_mins = all_mins[sig_moltype][sig_ksize]
+                all_mins[sig_moltype][sig_ksize] = prev_mins + mins
             else:
-                all_mins[moltype][ksize] = mins
-            #all_mins += mins
+                all_mins[sig_moltype][sig_ksize] = mins
 
 sigobjs = []
 for moltype, mins_by_k in all_mins.items():
@@ -61,31 +66,30 @@ for moltype, mins_by_k in all_mins.items():
             counts = Counter(mins) # tally the number of hashes
             # remove hashes that occur only once
             for hashval, ct in counts.copy().items():
-                print(f"{hashval}:ct")
+                print(f"{hashval}:{ct}")
                 if ct < min_count:
                     counts.pop(hashval)
+            # write out hashes
 
-            # now need to store this somewhere again, or directly create a sig
             # let's try building a sig. we will use this sig later to intersect with sample-specific sigs
             new_mins = set(counts.keys())
             print(len(new_mins))
+            with open(outhashes, "w") as out:
+                for hsh in new_mins:
+                    out.write(str(hsh) + '\n')
             if len(new_mins) > 0:
-                import pdb;pdb.set_trace()
                 minhash = MinHash(n=0, ksize=ksize, scaled=scaled) # scaled=1 so we keep all (though these were previously at some other scaled val)
                 minhash.add_many(set(counts.keys()))
                 # write sig to file
                 sigobj= sourmash.SourmashSignature(minhash, name=f"aggregated_hashvals_above_{min_count}", filename=f"generated with drop_unique_hashes.py")
-                import pdb;pdb.set_trace()
                 sigobjs +=[sigobj]
 
+## this part only handles one output file -- doesn't take care of case with many ksizes/moltypes
 with open(outsig, 'wt') as sigout:
     sourmash.save_signatures(sigobjs, sigout)
-                    #notify('wrote signature to {}', args.output)
+    #notify('wrote signature to {}', args.output)
 
 # write out hashes to a text file
-#with open(outhashes, "w") as out:
-#    for key in counts:
-#        out.write(key + '\n')
 
 
 # this part is from

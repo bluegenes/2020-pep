@@ -1,0 +1,9 @@
+channels:
+  - anaconda
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.8
+  - numpy
+  - anaconda::scikit-learn=0.20.1

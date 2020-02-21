@@ -36,11 +36,12 @@ rule all:
         #expand(os.path.join(out_dir, "preprocess", "cutadapt", "{sample}.polyAabundtrim_2.fq.gz"), sample=SAMPLES)
         #expand(os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_2.fq.gz"), sample=SAMPLES)
         #expand(os.path.join(out_dir, "preprocess", "{sample}_1.polyAtrim.fq.gz"), sample=SAMPLES)
-        #expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}.codingpep.fa"), sample=SAMPLES, molecule= "protein", ksize=[5,7]),
-        #expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}.codingpep.fa"), sample=SAMPLES, molecule= "dayhoff", ksize=[9,11,13,15]),
-       # expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}.codingpep.fa"), sample=SAMPLES, molecule= "hp", ksize=[13,15,17,19,21]),
-        #expand(os.path.join(out_dir, "sourmash_compare", "codingpep_k{k}_{encoding}_compare.csv"), k=["5","7","11","13","15","17","19","21"], encoding= ["protein", "dayhoff", "hp"])
-        expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}.codingpep.fa"), sample=SAMPLES, molecule=["hp"], ksize=["30"])
+        expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pepref}.codingpep.fa"), sample=SAMPLES, molecule= "protein", ksize=[5,7], pepref=["merc"]),
+        expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pepref}.codingpep.fa"), sample=SAMPLES, molecule= "dayhoff", ksize=[9,11,13,15], pepref=["merc"]),
+        #expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}.codingpep.fa"), sample=SAMPLES, molecule= "hp", ksize=[13,15,17,19,21]),
+        #expand(os.path.join(out_dir, "sourmash", "codingpep_k{k}_{encoding}_{type}_compare.csv"), k=["5","7","11","13","15","17","19","21", "25", "31", "35", "41" ], encoding= ["protein", "dayhoff", "hp"], type=["jaccard", "cosine"]),
+        #expand(os.path.join(out_dir, "sourmash", "codingpep_{encoding}_k{k}", "coding_pep_k{k}_{encoding}_{type}_compare.np"),, k=["5","7","11","13","15","17","19","21", "25", "31", "35", "41" ], encoding= ["protein", "dayhoff", "hp"], type=["jaccard", "cosine"])
+        #expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}.codingpep.fa"), sample=SAMPLES, molecule=["hp"], ksize=["30"])
         #expand(os.path.join(out_dir, "sourmash", "codingpep_{molecule}_k{ksize}", "codingpep_k{k}_{encoding}_compare.csv"), molecule=["hp"], ksize=["30"], k=["5","7","11","13","15","17","19","21"], encoding= ["protein", "dayhoff", "hp"])
 
 # grab the data
@@ -167,22 +168,27 @@ rule pear_read_merging:
 
 
 moltypeD = {"hp": "hydrophobic-polar", "protein": "protein", "dayhoff": "dayhoff"}
+pepRefD = {"sprot": "/home/ntpierce/2020-pep/khtools_testing/uniprot_sprot.fasta.gz", "merc": "/home/ntpierce/2020-pep/khtools_testing/MERC.fasta.gz"}
+
 rule extract_coding:
-    input: rules.pear_read_merging.output.assembled
+    input: 
+        reads=rules.pear_read_merging.output.assembled,
+        pep_ref= lambda w: pepRefD[w.pep_ref]
     output: 
-        coding_prot=os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}.codingpep.fa"),
-        noncoding_nucl=os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}.noncoding.fa"),
-        low_complexity_nucl=os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}.lowcomplexnucl.fa"),
-        csv=os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}.csv"),
-    log: os.path.join(logs_dir, "khtools", "{sample}_{molecule}_k{ksize}.extract_coding.log")
-    benchmark: os.path.join(logs_dir, "khtools", "{sample}_{molecule}_k{ksize}.extract_coding.benchmark")
+        coding_prot=os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pep_ref}.codingpep.fa"),
+        noncoding_nucl=os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pep_ref}.noncoding.fa"),
+        low_complexity_nucl=os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pep_ref}.lowcomplexnucl.fa"),
+        csv=os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pep_ref}.csv"),
+    log: os.path.join(logs_dir, "khtools", "{sample}_{molecule}_k{ksize}_ref{pep_ref}.extract_coding.log")
+    benchmark: os.path.join(logs_dir, "khtools", "{sample}_{molecule}_k{ksize}_ref{pep_ref}.extract_coding.benchmark")
     params:
         molecule=lambda w: moltypeD[w.molecule],
-        ksize=lambda w: int(w.ksize),
+    #wildcard_constraints:
+    #    ksize=["\d+"],
     conda: os.path.join(wrappers_dir, "khtools-env.yml")
     shell:
         """
-        khtools extract-coding --verbose --molecule {params.molecule} --peptide-ksize {params.ksize} --noncoding-nucleotide-fasta {output.noncoding_nucl} --low-complexity-nucleotide-fasta {output.low_complexity_nucl} --csv {output.csv} {input} > {output.coding_prot} 2> {log}
+        khtools extract-coding --verbose --molecule {params.molecule} --peptide-ksize {wildcards.ksize} --noncoding-nucleotide-fasta {output.noncoding_nucl} --low-complexity-nucleotide-fasta {output.low_complexity_nucl} --csv {output.csv} {input.pep_ref} {input.reads} > {output.coding_prot} 2> {log}
         """
 
 rule sourmash_compute_reads:
@@ -203,7 +209,7 @@ rule sourmash_compute_reads:
 rule sourmash_compare_cosine: # use abundances
     input: sigs=expand(os.path.join(out_dir, "preprocess", "sourmash", "{sample}_{{molecule}}_k{{ksize}}.codingpep.sig"), sample=SAMPLES)
     output:
-        np=os.path.join(out_dir, "sourmash", "codingpep_{molecule}_k{ksize}", "coding_pep_k{k}_{encoding}_cosine_compare.np"),
+        np=os.path.join(out_dir, "sourmash", "codingpep_{molecule}_k{ksize}", "codingpep_k{k}_{encoding}_cosine_compare.np"),
         csv=os.path.join(out_dir, "sourmash", "codingpep_{molecule}_k{ksize}", "codingpep_k{k}_{encoding}_cosine_compare.csv")
     params:
         include_encodings = lambda w: f"{w.encoding}",
@@ -217,7 +223,7 @@ rule sourmash_compare_cosine: # use abundances
 rule sourmash_compare_jaccard: #ignore abundances
     input: sigs=expand(os.path.join(out_dir, "preprocess", "sourmash", "{sample}_{{molecule}}_k{{ksize}}.codingpep.sig"), sample=SAMPLES)
     output:
-        np=os.path.join(out_dir, "sourmash", "codingpep_{molecule}_k{ksize}", "coding_pep_k{k}_{encoding}_jaccard_compare.np"),
+        np=os.path.join(out_dir, "sourmash", "codingpep_{molecule}_k{ksize}", "codingpep_k{k}_{encoding}_jaccard_compare.np"),
         csv=os.path.join(out_dir, "sourmash", "codingpep_{molecule}_k{ksize}", "codingpep_k{k}_{encoding}_jaccard_compare.csv")
     params:
         ignore_abundance = True,

@@ -13,6 +13,7 @@ sample_namelist = config.get("samplelist", "ten_haptophytes.txt")
 SAMPLES = [x.strip().split('\t')[0] for x in open(sample_namelist, "r")]
 #SAMPLES.remove("MMETSP0009")
 #SAMPLES = ["MMETSP0143"]
+SAMPLES = ["MMETSP0091"]
 
 info_csv = config.get("info_csv", "all_mmetsp_elvers.csv")
 samplesDF = read_samples(info_csv)
@@ -30,7 +31,8 @@ radiuses= config.get("radiuses", ["1"])
 
 rule all:
     input:
-        expand(os.path.join(out_dir, "mmseqs2", "{sample}_sgc_k{k}_r{r}_x_plass.mmap.sam"), sample=SAMPLES, k=ksizes, r=radiuses)
+        expand(os.path.join(out_dir, "mmseqs2", "{sample}_sgc_k{k}_r{r}_x_plass.mmap.sam"), sample=SAMPLES, k=ksizes, r=radiuses),
+        expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}", "{sample}_sgc_contigs_x_plass.paladin.quant/quant.sf"), sample=SAMPLES, k=ksizes, r=radiuses)
         #expand(os.path.join(out_dir, "plass", "{sample}_plass.cdhit100.fa"), sample=SAMPLES),
         #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}/first_doms.txt"), sample=SAMPLES, k=ksizes, r=radiuses),
         #expand(os.path.join(out_dir, "blast", "{sample}_plass.cdhit100.psq"),sample=SAMPLES)
@@ -137,14 +139,14 @@ rule paladin_map_search_reads_x_plass_assembly:
 
 
 rule mmseqs_createdb_plass:
-   input: os.path.join(out_dir, "plass", "{sample}_plass.fa")
-   output: os.path.join(out_dir, "plass", "{sample}_plass.mmseqsDB") 
-   log: os.path.join(logs_dir, "mmseqs2", "{sample}_plass.createDB.log")
-   benchmark: os.path.join(logs_dir, "mmseqs2", "{sample}_plass.createDB.benchmark")
+   input: os.path.join(out_dir, "plass", "{sample}_plass.cdhit100.fa")
+   output: os.path.join(out_dir, "plass", "{sample}_plass.cdhit100.fa.mmseqsDB") 
+   log: os.path.join(logs_dir, "mmseqs2", "{sample}_plass.cdhit100.fa.createDB.log")
+   benchmark: os.path.join(logs_dir, "mmseqs2", "{sample}_plass.cdhit100.fa.createDB.benchmark")
    conda: os.path.join(wrappers_dir, "mmseqs2-env.yml")
    shell:
        """
-       mmseqs createdb {input} {output}
+       mmseqs createdb {input} {output} 2> {log}
        """
 
 rule mmseqs_createdb_sgc_contigs:
@@ -155,7 +157,7 @@ rule mmseqs_createdb_sgc_contigs:
    conda: os.path.join(wrappers_dir, "mmseqs2-env.yml")
    shell:
        """
-       mmseqs createdb {input} {output} tmp
+       mmseqs createdb {input} {output} 2> {log}
        """
 
 rule mmseqs_map:
@@ -170,7 +172,7 @@ rule mmseqs_map:
     conda: os.path.join(wrappers_dir, "mmseqs2-env.yml")
     shell:
         """
-        mmseqs map {input.sgc} {input.plass} resultDB tmp
+        mmseqs map {input.sgc} {input.plass} {output} tmp
         """
 
 rule mmseqs_results_to_sam:
@@ -226,17 +228,18 @@ rule samtools_index_paladin:
     samtools index {input}
     """
 
-#rule paladin_quant:
-#    input:
-#        assembly="outputs/cd-hit95/{nbhd}.cdhit95.faa",
-#        bam=os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}", "{sample}_sgc_contigs_x_plass.paladin.sort.bam")
-#    output: os.path.join(out_dir, "salmon", "{nhbd}_quant/quant.sf")
-#    params:
-#        out="outputs/salmon/{nbhd}_quant"
-#    conda: "salmon-env.yml"
-#    shell:'''
-#    salmon quant -t {input.cdhit} -l A -a {input.bam} -o {params.out}
-#    '''
+rule paladin_quant:
+    input:
+        assembly=os.path.join(out_dir, "plass", "{sample}_plass.fa"),
+        bam=rules.paladin_map_sgc_contigs_x_plass.output
+    output: os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}", "{sample}_sgc_contigs_x_plass.paladin.quant/quant.sf")
+    #output: os.path.join(out_dir, "salmon", "{nhbd}_quant/quant.sf")
+    params:
+        out_dir=os.path.join(out_dir, "spacegraphcats", "{sample}_k{ksize}_r{radius}","{sample}_sgc_contigs_x_plass.paladin.quant")
+    conda: os.path.join(wrappers_dir, "salmon-env.yml")
+    shell:'''
+    salmon quant -t {input.assembly} -l A -a {input.bam} -o {params.out_dir}
+    '''
 
 ## do something like this?
 # https://github.com/taylorreiter/hu-snake/blob/6dadc5f4f230f89a93f4855523cb213213462b12/PLASS/variant_snakemake/Snakefile

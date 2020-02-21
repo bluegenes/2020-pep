@@ -204,15 +204,15 @@ paladin_map_sgc_contigs_x_plass:
     jobname: "{rule}.w{wildcards}"
 extract_coding:
     partition: bmm
-    time: 10:00:00 # time limit for each job
+    time: 3-00:00:00 # time limit for each job
     nodes: 1
     cpus_per_task: 1
-    mem: 1GB
+    mem: 10GB
     chdir: /home/ntpierce/2020-pep/orthopep_out
     stderr: "logs/khtools/slurm-%j.stderr"
     stdout: "logs/khtools/slurm-%j.stdout"
     jobname: "{rule}.w{wildcards}"
-sourmash_compute_plass:
+plass_sourmash_compute:
     partition: bmm
     time: 6:00:00 
     nodes: 1
@@ -221,5 +221,105 @@ sourmash_compute_plass:
     chdir: /home/ntpierce/2020-pep/orthopep_out
     stderr: "logs/sourmash/slurm-%j.stderr"
     stdout: "logs/sourmash/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+plass_sourmash_compare_cosine:
+    partition: bmm
+    time: 6:00:00 
+    nodes: 1
+    cpus_per_task: 1
+    mem: 1GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/sourmash/slurm-%j.stderr"
+    stdout: "logs/sourmash/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+plass_sourmash_compare_jaccard:
+    partition: bmm
+    time: 6:00:00 
+    nodes: 1
+    cpus_per_task: 1
+    mem: 1GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/sourmash/slurm-%j.stderr"
+    stdout: "logs/sourmash/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+plass_sourmash_compare_cosine:
+    partition: bmm
+    time: 6:00:00 
+    nodes: 1
+    cpus_per_task: 1
+    mem: 1GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/sourmash/slurm-%j.stderr"
+    stdout: "logs/sourmash/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+plass_sourmash_plot_jaccard:
+    partition: bmm
+    time: 6:00:00 
+    nodes: 1
+    cpus_per_task: 1
+    mem: 1GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/sourmash/slurm-%j.stderr"
+    stdout: "logs/sourmash/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+paladin_quant:
+    partition: bmm
+    time: 3:00:00 
+    nodes: 1
+    cpus_per_task: 10
+    mem: 10GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/salmon/slurm-%j.stderr"
+    stdout: "logs/salmon/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+mmseqs_map:
+    partition: bmm
+    time: 6:00:00 
+    nodes: 1
+    cpus_per_task: 10
+    mem: 10GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/mmseqs/slurm-%j.stderr"
+    stdout: "logs/mmseqs/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+mmseqs_results_to_sam:
+    partition: bmm
+    time: 6:00:00 
+    nodes: 1
+    cpus_per_task: 1
+    mem: 10GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/mmseqs/slurm-%j.stderr"
+    stdout: "logs/mmseqs/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+createdb_MERCref:
+    partition: bmm
+    time: 6:00:00 
+    nodes: 1
+    cpus_per_task: 1
+    mem: 10GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/mmseqs/slurm-%j.stderr"
+    stdout: "logs/mmseqs/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+metaeuk_easypredict_plass:
+    partition: bmm
+    time: 10:00:00 
+    nodes: 1
+    cpus_per_task: 1
+    mem: 20GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/metaeuk/slurm-%j.stderr"
+    stdout: "logs/metaeuk/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+metaeuk_easypredict_trinity: 
+    partition: bmm
+    time: 10:00:00 
+    nodes: 1
+    cpus_per_task: 1
+    mem: 20GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/metaeuk/slurm-%j.stderr"
+    stdout: "logs/metaeuk/slurm-%j.stdout"
     jobname: "{rule}.w{wildcards}"
 

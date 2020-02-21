@@ -103,6 +103,18 @@ rule samtools_index_paladin:
     samtools index {input}
     """
 
+rule salmon_quant_paladin:
+    input:
+        cdhit="outputs/cd-hit95/{nbhd}.cdhit95.faa",
+        bam=rules.paladin_align.output
+    output: "outputs/salmon/{nbhd}_quant/quant.sf"
+    params:
+        out="outputs/salmon/{nbhd}_quant"
+    conda: ENV
+    shell:'''
+    salmon quant -t {input.cdhit} -l A -a {input.bam} -o {params.out}
+    '''
+
 
 rule mmseqs2:
 # https://github.com/soedinglab/MMseqs2/wiki#mapping-very-similar-sequences-using-mmseqs-map
