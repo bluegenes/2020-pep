@@ -327,9 +327,39 @@ khtools_comparekmers:
     time: 10-00:00:00 
     nodes: 1
     cpus_per_task: 20
-    mem: 20GB
+    mem: 30GB
     chdir: /home/ntpierce/2020-pep/kcompare_out
     stderr: "logs/khtools/slurm-%j.stderr"
     stdout: "logs/khtools/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+busco_trans:
+    partition: bmm
+    time: 1-00:00:00 
+    nodes: 1
+    cpus_per_task: 10
+    mem: 20GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/busco/slurm-%j.stderr"
+    stdout: "logs/busco/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+busco_plass:
+    partition: bmm
+    time: 1-00:00:00 
+    nodes: 1
+    cpus_per_task: 10
+    mem: 20GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/busco/slurm-%j.stderr"
+    stdout: "logs/busco/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
+busco_jpep:
+    partition: bmm
+    time: 1-00:00:00 
+    nodes: 1
+    cpus_per_task: 10
+    mem: 20GB
+    chdir: /home/ntpierce/2020-pep/orthopep_out
+    stderr: "logs/busco/slurm-%j.stderr"
+    stdout: "logs/busco/slurm-%j.stdout"
     jobname: "{rule}.w{wildcards}"
 

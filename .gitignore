@@ -5,3 +5,6 @@ orthopep_out/
 pep_fasta/
 sgc_config/
 wrappers/TruSeq3-PE.fa
+*parquet
+*log
+test_*/
