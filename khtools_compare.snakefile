@@ -20,8 +20,11 @@ wrappers_dir = "wrappers"
 pep_dir="/home/ntpierce/2020-pep/pep_fasta"
 #pep_dir="/pylon5/mc5phkp/2019-burgers-shrooms/mmetsp_info/mmetsp_pep"
 
+ASSEMBLIES=["transdecoder"]
+
 rule all:
-    input: os.path.join(out_dir, "all_by_all_kmer_comparison.parquet")
+    #input: os.path.join(out_dir, "all_by_all_kmer_comparison.parquet")
+    input: os.path.join(out_dir, "busco_kmer_comparison.parquet")
 
 def get_all_pep(w):
     #most: MMETSP0224.trinity_out_2.2.0.Trinity.fasta.transdecoder.pep
@@ -55,3 +58,30 @@ rule khtools_comparekmers:
         """
         khtools compare-kmers --processes {threads} --ksize-min {params.min_k} --ksize-max {params.max_k} --parquet {output} --intermediate-parquet {input} 2> {log}
         """
+
+def get_buscofastas(w):
+    buscofastas=[]
+    for sample in SAMPLES:
+        for asb in ASSEMBLIES:
+            fastapath=os.path.join(out_dir, "busco_fastas", f"{sample}_{asb}", f"{sample}_{asb}" +" _{busco_id}.fasta")
+            sample_fastas=expand(fastapath, busco_id=glob_wildcards(fastapath).busco_id)
+            if len(sample_fastas) >= 1:
+                buscofastas+=sample_fastas
+    return buscofastas
+
+rule khtools_comparebuscokmers:
+    #input: expand(os.path.join(out_dir, "busco_fastas", "{sample}_{assemb}", "{sample}_{assemb}_{buscoid}.fasta"), sample=SAMPLES, assemb=["transdecoder"], busco_id=glob_wildcards(os.path.join(out_dir, "busco_fastas", "{sample}_{assemb}", "{sample}_{assemb}_{buscoid}.fasta"))
+    input: get_buscofastas
+    output: os.path.join(out_dir, "busco_kmer_comparison.parquet")
+    conda: os.path.join(wrappers_dir, "khtools-kcompare.yml")
+    log: os.path.join(logs_dir, "busco_kmer_comparison.log")
+    benchmark: os.path.join(logs_dir, "busco_kmer_comparison.benchmark")
+    threads: 20
+    params:
+        min_k=5,
+        max_k=33,
+    shell:
+        """
+        khtools compare-kmers --processes {threads} --ksize-min {params.min_k} --ksize-max {params.max_k} --parquet {output} --intermediate-parquet {input} 2> {log}
+        """
+

@@ -24,14 +24,15 @@ sgc_configdir = os.path.join(out_dir, "spacegraphcats", "sgc_config")
 
 pep_dir="/home/ntpierce/2019-burgers-shrooms/mmetsp_info/mmetsp_pep"
 
-ASSEMBLIES=["trinity", "plass", "jpep", "transdecoder"]
+#ASSEMBLIES=["trinity", "jpep", "transdecoder"] #plass
+ASSEMBLIES=["transdecoder"] #plass
 rule all:
     input: 
         #expand(os.path.join(out_dir, "busco", "{sample}_{assemb}_busco_euk"), sample=SAMPLES, assemb=["trinity", "plass", "jpep", "transdecoder"]),
         #os.path.join(out_dir, "busco", "busco_summaries", "busco_figure.png"),
         #directory(os.path.join(out_dir, "busco_fastas"))
-        expand(os.path.join(out_dir, "busco_sigs", "buscohashes_above_{min_count}_scaled{scaled}_{encoding}_k{k}.sig"), scaled=10, encoding="dayhoff", k=31, min_count=2)
-        #expand(os.path.join(out_dir, "busco_filtsigs_plots", "buscohashes_scaled{scaled}_{encoding}_k{k}_above{min_count}_compare_jaccard.np.matrix.pdf"), scaled=10, encoding="dayhoff", k-"31", min_count=2)
+        expand(os.path.join(out_dir, "busco_sigs", "buscohashes_above_{min_count}_scaled{scaled}_{encoding}_k{k}.sig"), scaled=10, encoding="dayhoff", k=31, min_count=2),
+        expand(os.path.join(out_dir, "busco_filtsigs_plots", "buscohashes_scaled{scaled}_{encoding}_k{k}_above{min_count}_compare_jaccard.np.matrix.pdf"), scaled=10, encoding="dayhoff", k=31, min_count=2)
 
 def get_jpep(w):
     #most: MMETSP0224.trinity_out_2.2.0.Trinity.fasta.transdecoder.pep
@@ -120,16 +121,17 @@ checkpoint copy_busco_fastas:
     input: os.path.join(out_dir, "busco", "{sample}_{assemb}_busco_euk", "short_summary.specific.eukaryota_odb10.{sample}_{assemb}_busco_euk.txt")
     output: directory(os.path.join(out_dir, "busco_fastas", "{sample}_{assemb}")) #, "{sample}_{assemb}_{buscoid}.fasta")
     #conda: os.path.join(wrappers_dir, "khmer-env.yml")
+    log: os.path.join(logs_dir, "copy_busco_fastas", "{sample}_{assemb}.log")
     params:
-        basename = lambda w: f"{w.sample}_{w.assemb}",
-        source_dir= lambda w: os.path.join(out_dir, "busco", "{w.sample}_{w.assemb}_busco_euk", "run_eukaryota_odb10", "busco_sequences", "single_copy_busco_sequences"),
-        dest_dir = os.path.join(out_dir, "busco_fastas")
+        basename = lambda w: w.sample + "_" + w.assemb,
+        source_dir= lambda w: os.path.join(out_dir, "busco", f"{w.sample}_{w.assemb}_busco_euk", "run_eukaryota_odb10", "busco_sequences", "single_copy_busco_sequences"),
+        dest_dir = os.path.join(out_dir, "busco_fastas", "{sample}_{assemb}")
     script: os.path.join(wrappers_dir, "copy_busco_fastas.py") 
 
 
 rule sourmash_compute:
     input: fasta=os.path.join(out_dir, "busco_fastas", "{sample}_{assemb}", "{sample}_{assemb}_{buscoid}.fasta")
-    output: os.path.join(out_dir, "busco_sigs", "{sample}_{assemb}_{buscoid}_scaled{scaled}_{encoding}_k{k}.sig")
+    output: os.path.join(out_dir, "busco_sigs", "{sample}_{assemb}", "{sample}_{assemb}_{buscoid}_scaled{scaled}_{encoding}_k{k}.sig")
     params:
         k= lambda w: w.k,
         scaled= lambda w: w.scaled,
@@ -148,13 +150,10 @@ def aggregate_sigs(w):
     """
     sigfiles=[]
     for sp in SAMPLES:
-        print(sp)
         for asb in ASSEMBLIES:
-            print(asb)
             checkpoint_output=checkpoints.copy_busco_fastas.get(sample=sp, assemb=asb).output[0]
-            sigpath= os.path.join(out_dir, "busco_sigs", f"{sp}_{asb}" +"_{buscoid}_scaled{scaled}_{encoding}_k{k}.sig")
-            sigfiles+=expand(sigpath, sample=sp, assemb=asb, buscoid=glob_wildcards(os.path.join(checkpoint_output, f"{sp}_{asb}", f"{sp}_{asb}" + "_{busco_id}.fasta")).busco_id, scaled=w.scaled, encoding=w.encoding, k=w.k)
-            print(sigfiles)
+            sigpath= os.path.join(out_dir, "busco_sigs", f"{sp}_{asb}", f"{sp}_{asb}" +"_{buscoid}_scaled{scaled}_{encoding}_k{k}.sig")
+            sigfiles+=expand(sigpath, sample=sp, assemb=asb, buscoid=glob_wildcards(os.path.join(checkpoint_output, f"{sp}_{asb}" + "_{busco_id}.fasta")).busco_id, scaled=w.scaled, encoding=w.encoding, k=w.k)
     return sigfiles
 
 
@@ -177,10 +176,10 @@ rule drop_unique_hashes:
 rule intersect_to_drop_unique:
     input:
         keep_hashes=os.path.join(out_dir, "busco_sigs", "buscohashes_above_{min_count}_scaled{scaled}_{encoding}_k{k}.sig"),
-        sig=os.path.join(out_dir, "busco_sigs", "{sample}_{assemb}_{buscoid}_scaled{scaled}_{encoding}_k{k}.sig")
+        sig=os.path.join(out_dir, "busco_sigs", "{sample}_{assemb}", "{sample}_{assemb}_{buscoid}_scaled{scaled}_{encoding}_k{k}.sig")
     output:
-        filt=os.path.join(out_dir, "busco_filtsigs", "{sample}_{assemb}_{buscoid}_scaled{scaled}_{encoding}_k{k}_above{mincount}.sig"),
-        filt_renamed=os.path.join(out_dir, "busco_filtsigs", "{sample}_{assemb}_{buscoid}_scaled{scaled}_{encoding}_k{k}_above{mincount}_renamed.sig")
+        filt=os.path.join(out_dir, "busco_filtsigs", "{sample}_{assemb}_{buscoid}_scaled{scaled}_{encoding}_k{k}_above{min_count}.sig"),
+        filt_renamed=os.path.join(out_dir, "busco_filtsigs", "{sample}_{assemb}_{buscoid}_scaled{scaled}_{encoding}_k{k}_above{min_count}_renamed.sig")
     conda: os.path.join(wrappers_dir, "sourmash-3.2.2.yml")
     shell:
         """
@@ -196,14 +195,13 @@ def aggregate_filt_sigs(w):
     for sp in SAMPLES:
         for asb in ASSEMBLIES:
             checkpoint_output=checkpoints.copy_busco_fastas.get(sample=sp, assemb=asb).output[0]
-            #checkpoint_output=checkpoints.intersect_to_drop_unique.get(sample=sp, assemb=asb).output[0]
-            sigpath= os.path.join(out_dir, "busco_sigs", f"{sp}_{asb}" +"_{buscoid}_scaled{scaled}_{encoding}_k{k}_above{min_count}_renamed.sig")
-            sigfiles+=expand(sigpath, sample=sp, assemb=asb, buscoid=glob_wildcards(os.path.join(checkpoint_output, f"{sp}_{asb}" + "_{busco_id}.sig")).busco_id, scaled=w.scaled, encoding=w.encoding, k=w.k)
-            print(sigfiles)
+            sigpath= os.path.join(out_dir, "busco_filtsigs", f"{sp}_{asb}" +"_{buscoid}_scaled{scaled}_{encoding}_k{k}_above{min_count}_renamed.sig")
+            sigfiles+=expand(sigpath, sample=sp, assemb=asb, buscoid=glob_wildcards(os.path.join(checkpoint_output, f"{sp}_{asb}" + "_{buscoid}.fasta")).buscoid, scaled=w.scaled, encoding=w.encoding, k=w.k, min_count=w.min_count)
     return sigfiles
 
 rule sourmash_compare_cosine_nounique:
-    input: sigs=aggregate_filt_sigs
+    input: 
+        sigs=aggregate_filt_sigs, 
     output:
         np=os.path.join(out_dir, "busco_filtsigs_compare", "buscohashes_scaled{scaled}_{encoding}_k{k}_above{min_count}_compare_cosine.np"),
         csv=os.path.join(out_dir, "busco_filtsigs_compare", "buscohashes_scaled{scaled}_{encoding}_k{k}_above{min_count}_compare_cosine.csv"),
@@ -217,10 +215,11 @@ rule sourmash_compare_cosine_nounique:
     script: os.path.join(wrappers_dir, "sourmash-compare.wrapper.py")
 
 rule sourmash_compare_jaccard_nounique:
-    input: sigs=aggregate_filt_sigs
+    input: 
+        sigs=aggregate_filt_sigs,
     output:
         np=os.path.join(out_dir, "busco_filtsigs_compare", "buscohashes_scaled{scaled}_{encoding}_k{k}_above{min_count}_compare_jaccard.np"),
-        csv=os.path.join(out_dir, "busco_filtsigs_compare","buscohashes_scaled{scaled}_{encoding}_k{k}_above{min_count}_compare_jaccard.csv"),
+        csv=os.path.join(out_dir, "busco_filtsigs_compare", "buscohashes_scaled{scaled}_{encoding}_k{k}_above{min_count}_compare_jaccard.csv"),
     params:
         ignore_abundance=True,
         include_encodings = lambda w: w.encoding,
