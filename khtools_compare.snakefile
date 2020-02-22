@@ -16,7 +16,8 @@ out_dir = config.get("out_dir", "kcompare_out")
 logs_dir = os.path.join(out_dir, "logs")
 wrappers_dir = "wrappers"
 
-pep_dir="/home/ntpierce/2019-burgers-shrooms/mmetsp_info/mmetsp_pep"
+#pep_dir="/home/ntpierce/2019-burgers-shrooms/mmetsp_info/mmetsp_pep"
+pep_dir="/home/ntpierce/2020-pep/pep_fasta"
 #pep_dir="/pylon5/mc5phkp/2019-burgers-shrooms/mmetsp_info/mmetsp_pep"
 
 rule all:
@@ -28,9 +29,9 @@ def get_all_pep(w):
     fastalist = []
     for sample in SAMPLES:
         if sample == "MMETSP0251":
-            fastalist+=[os.path.join(pep_dir, f"{sample}.trinity_out_2.3.2.Trinity.fasta.transdecoder.pep")]
+            fastalist+=[os.path.join(pep_dir, f"{sample}.trinity_out_2.3.2.Trinity.fasta.transdecoder.pep.fasta")]
         else:
-            fastalist+=[os.path.join(pep_dir, f"{sample}.trinity_out_2.2.0.Trinity.fasta.transdecoder.pep")]
+            fastalist+=[os.path.join(pep_dir, f"{sample}.trinity_out_2.2.0.Trinity.fasta.transdecoder.pep.fasta")]
     return fastalist
 
 # olga guesses:
@@ -44,11 +45,13 @@ rule khtools_comparekmers:
     input: get_all_pep
     output: os.path.join(out_dir, "all_by_all_kmer_comparison.parquet")
     conda: os.path.join(wrappers_dir, "khtools-kcompare.yml")
-    threads: 20 #20
+    log: os.path.join(logs_dir, "all_by_all_kmer_comparison.log")
+    benchmark: os.path.join(logs_dir, "all_by_all_kmer_comparison.benchmark")
+    threads: 20
     params:
         min_k=5,
         max_k=33,
     shell:
         """
-        khtools compare-kmers --processes {threads} --ksize-min {params.min_k} --ksize-max {params.max_k} --parquet {output} --intermediate-parquet {input}
+        khtools compare-kmers --processes {threads} --ksize-min {params.min_k} --ksize-max {params.max_k} --parquet {output} --intermediate-parquet {input} 2> {log}
         """
