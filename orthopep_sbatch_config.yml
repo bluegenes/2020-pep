@@ -322,4 +322,14 @@ metaeuk_easypredict_trinity:
     stderr: "logs/metaeuk/slurm-%j.stderr"
     stdout: "logs/metaeuk/slurm-%j.stdout"
     jobname: "{rule}.w{wildcards}"
+khtools_comparekmers:
+    partition: bmm
+    time: 10-00:00:00 
+    nodes: 1
+    cpus_per_task: 20
+    mem: 20GB
+    chdir: /home/ntpierce/2020-pep/kcompare_out
+    stderr: "logs/khtools/slurm-%j.stderr"
+    stdout: "logs/khtools/slurm-%j.stdout"
+    jobname: "{rule}.w{wildcards}"
 
