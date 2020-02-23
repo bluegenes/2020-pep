@@ -20,9 +20,20 @@ out_dir = config.get("out_dir", "orthopep_out")
 data_dir = os.path.join(out_dir, "input_data")
 logs_dir = os.path.join(out_dir, "logs")
 wrappers_dir = "wrappers"
-sgc_configdir = os.path.join(out_dir, "spacegraphcats", "sgc_config")
 
 pep_dir="/home/ntpierce/2019-burgers-shrooms/mmetsp_info/mmetsp_pep"
+
+scaled_vals=[1,10]#[1,10,20]
+moltypes=["dayhoff"] #["protein", "dayhoff", "hp"]
+#moltypes=["protein"] 
+#moltypes=["hp"]
+mincounts=[2,5,10]
+#ksizes=[9,11,13,15,31]
+ksizes=[5,6,7,8,9,10,11,12,13] #,15,17,19,21,23,25,27,29,31,33,35]
+#ksizes=[5,7,9,11]
+#ksizes=[27,29,31,33,35]
+
+
 
 #ASSEMBLIES=["trinity", "jpep", "transdecoder"] #plass
 ASSEMBLIES=["transdecoder"] #plass
@@ -31,8 +42,8 @@ rule all:
         #expand(os.path.join(out_dir, "busco", "{sample}_{assemb}_busco_euk"), sample=SAMPLES, assemb=["trinity", "plass", "jpep", "transdecoder"]),
         #os.path.join(out_dir, "busco", "busco_summaries", "busco_figure.png"),
         #directory(os.path.join(out_dir, "busco_fastas"))
-        expand(os.path.join(out_dir, "busco_sigs", "buscohashes_above_{min_count}_scaled{scaled}_{encoding}_k{k}.sig"), scaled=10, encoding="dayhoff", k=31, min_count=2),
-        expand(os.path.join(out_dir, "busco_filtsigs_plots", "buscohashes_scaled{scaled}_{encoding}_k{k}_above{min_count}_compare_jaccard.np.matrix.pdf"), scaled=10, encoding="dayhoff", k=31, min_count=2)
+        expand(os.path.join(out_dir, "busco_sigs", "buscohashes_above_{min_count}_scaled{scaled}_{encoding}_k{k}.sig"), scaled=scaled_vals, encoding=moltypes, k=ksizes, min_count=mincounts),
+        expand(os.path.join(out_dir, "busco_filtsigs_plots", "buscohashes_scaled{scaled}_{encoding}_k{k}_above{min_count}_compare_{comptype}.np.matrix.pdf"), scaled=scaled_vals, encoding=moltypes, k=ksizes, min_count=mincounts, comptype=["jaccard", "cosine"])
 
 def get_jpep(w):
     #most: MMETSP0224.trinity_out_2.2.0.Trinity.fasta.transdecoder.pep
@@ -184,7 +195,7 @@ rule intersect_to_drop_unique:
     shell:
         """
         sourmash signature intersect -o {output.filt} --abundances-from {input.sig} -k {wildcards.k} {input.sig} {input.keep_hashes}
-        sourmash signature rename -o {output.filt_renamed} -k {wildcards.k} {input.sig} {wildcards.sample}_above{wildcards.min_count}_renamed
+        sourmash signature rename -o {output.filt_renamed} -k {wildcards.k} {input.sig} {wildcards.sample}_{wildcards.buscoid}
         """
 
 def aggregate_filt_sigs(w):
@@ -241,7 +252,7 @@ rule sourmash_plot_cosine_nounique:
     conda: os.path.join(wrappers_dir, "sourmash-3.2.2.yml")
     shell:
         """
-        sourmash plot --output-dir {params.plot_dir} --labels --pdf {input}
+        sourmash plot --output-dir {params.plot_dir} --labels --pdf {input} 2> {log}
         """
 
 rule sourmash_plot_jaccard_nounique:
@@ -254,5 +265,5 @@ rule sourmash_plot_jaccard_nounique:
     conda: os.path.join(wrappers_dir, "sourmash-3.2.2.yml")
     shell:
         """
-        sourmash plot --output-dir {params.plot_dir} --labels --pdf {input}
+        sourmash plot --output-dir {params.plot_dir} --labels --pdf {input} 2> {log}
         """

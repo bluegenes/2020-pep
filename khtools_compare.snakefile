@@ -63,7 +63,7 @@ def get_buscofastas(w):
     buscofastas=[]
     for sample in SAMPLES:
         for asb in ASSEMBLIES:
-            fastapath=os.path.join(out_dir, "busco_fastas", f"{sample}_{asb}", f"{sample}_{asb}" +" _{busco_id}.fasta")
+            fastapath=os.path.join("orthopep_out", "busco_fastas", f"{sample}_{asb}", f"{sample}_{asb}" +"_{busco_id}.fasta")
             sample_fastas=expand(fastapath, busco_id=glob_wildcards(fastapath).busco_id)
             if len(sample_fastas) >= 1:
                 buscofastas+=sample_fastas
