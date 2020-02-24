@@ -12,7 +12,7 @@ FTP = FTPRemoteProvider()
 sample_namelist = config.get("samplelist", "ten_haptophytes.txt")
 SAMPLES = [x.strip().split('\t')[0] for x in open(sample_namelist, "r")]
 #SAMPLES.remove("MMETSP0090")
-#SAMPLES = ["MMETSP0090"]
+SAMPLES = ["MMETSP0006"]
 
 info_csv = config.get("info_csv", "all_mmetsp_elvers.csv")
 samplesDF = read_samples(info_csv)
@@ -31,7 +31,7 @@ radiuses= config.get("radiuses", ["1"])
 rule all:
     input: 
         #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}/first_doms.txt"), sample=SAMPLES, k=ksizes, r=radiuses),
-        #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}_search_oh0/results.csv"), sample=SAMPLES, k=ksizes, r=radiuses),
+        expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}_search_oh0/results.csv"), sample=SAMPLES, k=ksizes, r=radiuses),
         #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}_search_oh0/{sample}.cdbg_ids.contigs.fa.gz"), sample=["MMETSP0286"], k=ksizes, r=radiuses)
         #expand(os.path.join(sgc_configdir, "{sample}_k{k}_r{r}.yml"), sample=SAMPLES, k=ksizes, r=radiuses),
         #expand(os.path.join(out_dir, "spacegraphcats", "{sample}_k{k}_r{r}/first_doms.txt"), sample=SAMPLES, k=ksizes, r=radiuses),

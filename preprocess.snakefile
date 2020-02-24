@@ -14,8 +14,11 @@ SAMPLES = [x.strip().split('\t')[0] for x in open(sample_namelist, "r")]
 SAMPLES.remove("MMETSP0090")
 #SAMPLES = ["MMETSP0090"]
 
+# for all mmetsp samples
 info_csv = config.get("info_csv", "all_mmetsp_elvers.csv")
 samplesDF = read_samples(info_csv)
+MMETSP_SAMPLES = samplesDF["sample"].tolist()
+
 out_dir = config.get("out_dir", "orthopep_out")
 data_dir = os.path.join(out_dir, "input_data")
 logs_dir = os.path.join(out_dir, "logs")
@@ -32,12 +35,13 @@ radiuses= config.get("radiuses", ["1"])
 
 rule all:
     input: 
+        expand(os.path.join(out_dir, "sourmash_nucl", "plot", "nucl_k{k}_scaled{scaled}_{comptype}_compare.np.matrix.pdf"), sample=MMETSP_SAMPLES, k=[21,31,51], scaled=2000, comptype=["jaccard", "cosine"])
         #expand(os.path.join(out_dir, "preprocess", "cutadapt", "{sample}.polyAabundtrim.fq.gz"), sample=SAMPLES),
         #expand(os.path.join(out_dir, "preprocess", "cutadapt", "{sample}.polyAabundtrim_2.fq.gz"), sample=SAMPLES)
         #expand(os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_2.fq.gz"), sample=SAMPLES)
         #expand(os.path.join(out_dir, "preprocess", "{sample}_1.polyAtrim.fq.gz"), sample=SAMPLES)
-        expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pepref}.codingpep.fa"), sample=SAMPLES, molecule= "protein", ksize=[5,7], pepref=["merc"]),
-        expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pepref}.codingpep.fa"), sample=SAMPLES, molecule= "dayhoff", ksize=[9,11,13,15], pepref=["merc"]),
+#        expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pepref}.codingpep.fa"), sample=SAMPLES, molecule= "protein", ksize=[5,7], pepref=["merc"]),
+#        expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pepref}.codingpep.fa"), sample=SAMPLES, molecule= "dayhoff", ksize=[9,11,13,15], pepref=["merc"]),
         #expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}.codingpep.fa"), sample=SAMPLES, molecule= "hp", ksize=[13,15,17,19,21]),
         #expand(os.path.join(out_dir, "sourmash", "codingpep_k{k}_{encoding}_{type}_compare.csv"), k=["5","7","11","13","15","17","19","21", "25", "31", "35", "41" ], encoding= ["protein", "dayhoff", "hp"], type=["jaccard", "cosine"]),
         #expand(os.path.join(out_dir, "sourmash", "codingpep_{encoding}_k{k}", "coding_pep_k{k}_{encoding}_{type}_compare.np"),, k=["5","7","11","13","15","17","19","21", "25", "31", "35", "41" ], encoding= ["protein", "dayhoff", "hp"], type=["jaccard", "cosine"])
@@ -192,6 +196,79 @@ rule extract_coding:
         """
 
 rule sourmash_compute_reads:
+    input: rules.pear_read_merging.output.assembled
+    output: os.path.join(out_dir, "preprocess", "sourmash_nucl", "{sample}_k{ksize}_scaled{scaled}_nucl.sig")
+    params:
+        k=lambda w: w.ksize,
+        scaled=lambda w:w.scaled,
+        compute_moltypes=["dna"],
+        track_abundance=True,
+    log: os.path.join(logs_dir, "sourmash", "{sample}_k{ksize}_scaled{scaled}_nucl_compute.log")
+    benchmark: os.path.join(logs_dir, "sourmash", "{sample}_k{ksize}_scaled{scaled}_nucl_compute.benchmark")
+    conda: os.path.join(wrappers_dir, "sourmash-3.2.2.yml")
+    script: os.path.join(wrappers_dir, "sourmash-compute.wrapper.py")
+
+
+rule sourmash_compare_cosine_nucl: # use abundances
+    input: sigs=expand(os.path.join(out_dir, "preprocess", "sourmash_nucl", "{sample}_k{{ksize}}_scaled{{scaled}}_nucl.sig"), sample=MMETSP_SAMPLES)
+    output:
+        np=os.path.join(out_dir, "sourmash_nucl", "compare", "nucl_k{ksize}_scaled{scaled}_cosine_compare.np"),
+        csv=os.path.join(out_dir, "sourmash_nucl", "compare", "nucl_k{ksize}_scaled{scaled}_cosine_compare.csv")
+    params:
+        include_encodings = "nucl",
+        exclude_encodings = ["nucl", "protein", "dayhoff", "hp"], # this will exclude everything except for included encoding
+        k = lambda w: w.k,
+    log: os.path.join(logs_dir, "sourmash", "nucl_k{ksize}_scaled{scaled}_cosine_compare.log") 
+    benchmark: os.path.join(logs_dir, "sourmash", "nucl_k{ksize}_scaled{scaled}_cosine_compare.benchmark")
+    conda: os.path.join(wrappers_dir, "sourmash-3.2.2.yml")
+    script: os.path.join(wrappers_dir, "sourmash-compare.wrapper.py")
+
+rule sourmash_compare_jaccard_nucl: # ignore abundances
+    input: sigs=expand(os.path.join(out_dir, "preprocess", "sourmash_nucl", "{sample}_k{{ksize}}_scaled{{scaled}}_nucl.sig"), sample=MMETSP_SAMPLES)
+    output:
+        np=os.path.join(out_dir, "sourmash_nucl", "compare", "nucl_k{ksize}_scaled{scaled}_jaccard_compare.np"),
+        csv=os.path.join(out_dir, "sourmash_nucl", "compare", "nucl_k{ksize}_scaled{scaled}_jaccard_compare.csv")
+    params:
+        include_encodings = "nucl",
+        exclude_encodings = ["nucl", "protein", "dayhoff", "hp"], # this will exclude everything except for included encoding
+        k = lambda w: w.k,
+        ignore_abundance = True,
+    log: os.path.join(logs_dir, "sourmash", "nucl_k{ksize}_scaled{scaled}_jaccard_compare.log")
+    benchmark: os.path.join(logs_dir, "sourmash", "nucl_k{ksize}_scaled{scaled}_jaccard_compare.benchmark")
+    conda: os.path.join(wrappers_dir, "sourmash-3.2.2.yml")
+    script: os.path.join(wrappers_dir, "sourmash-compare.wrapper.py")
+
+rule sourmash_plot_cosine_nucl:
+    input: os.path.join(out_dir, "sourmash_nucl", "compare", "nucl_k{ksize}_scaled{scaled}_cosine_compare.np"),
+    output: os.path.join(out_dir, "sourmash_nucl", "plot", "nucl_k{ksize}_scaled{scaled}_cosine_compare.np.matrix.pdf"),
+    params:
+        plot_dir=os.path.join(out_dir, "sourmash_nucl", "plot")
+    log: os.path.join(logs_dir, "sourmash", "nucl_k{ksize}_scaled{scaled}_cosine_plot.log")
+    benchmark: os.path.join(logs_dir, "sourmash", "nucl_k{ksize}_scaled{scaled}_cosine_plot.benchmark") 
+    conda: os.path.join(wrappers_dir, "sourmash-3.2.2.yml")
+    shell:
+        """
+        sourmash plot --output-dir {params.plot_dir} --labels --pdf {input} 2> {log}
+        """
+
+rule sourmash_plot_jaccard_nucl:
+    input: os.path.join(out_dir, "sourmash_nucl", "compare", "nucl_k{ksize}_scaled{scaled}_jaccard_compare.np"),
+    output: os.path.join(out_dir, "sourmash_nucl", "plot", "nucl_k{ksize}_scaled{scaled}_jaccard_compare.np.matrix.pdf"),
+    params:
+        plot_dir=os.path.join(out_dir, "sourmash_nucl", "plot")
+    log: os.path.join(logs_dir, "sourmash", "nucl_k{ksize}_scaled{scaled}_jaccard_plot.log")
+    benchmark: os.path.join(logs_dir, "sourmash", "nucl_k{ksize}_scaled{scaled}_jaccard_plot.benchmark")
+    conda: os.path.join(wrappers_dir, "sourmash-3.2.2.yml")
+    shell:
+        """
+        sourmash plot --output-dir {params.plot_dir} --labels --pdf {input} 2> {log}
+        """
+
+
+
+
+
+rule sourmash_compute_reads_prot:
     input: rules.extract_coding.output.coding_prot
     output: os.path.join(out_dir, "preprocess", "sourmash", "{sample}_{molecule}_k{ksize}.codingpep.sig")
     params:

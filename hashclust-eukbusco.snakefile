@@ -23,15 +23,17 @@ wrappers_dir = "wrappers"
 
 pep_dir="/home/ntpierce/2019-burgers-shrooms/mmetsp_info/mmetsp_pep"
 
-scaled_vals=[1,10]#[1,10,20]
-moltypes=["dayhoff"] #["protein", "dayhoff", "hp"]
+scaled_vals=[1]#,10]#[1,10,20]
+#moltypes=["protein", "dayhoff", "hp"]
+#moltypes=["dayhoff"]
 #moltypes=["protein"] 
 #moltypes=["hp"]
-mincounts=[2,5,10]
-#ksizes=[9,11,13,15,31]
-ksizes=[5,6,7,8,9,10,11,12,13] #,15,17,19,21,23,25,27,29,31,33,35]
-#ksizes=[5,7,9,11]
-#ksizes=[27,29,31,33,35]
+mincounts=[2,5,8,10]
+dayhoff_ksizes=[8,9,10,11,12,13,15,17,19,21]
+#dayhoff_ksizes=[9,11,13,15,17] #,19,21]
+#ksizes=[5,6,7,8,9,10,11,12,13,15,17,19,21,23,25,27,29,31,33,35,37]
+protein_ksizes=[5,7,9,11]
+hp_ksizes=[27,29,31,33,35]
 
 
 
@@ -42,8 +44,12 @@ rule all:
         #expand(os.path.join(out_dir, "busco", "{sample}_{assemb}_busco_euk"), sample=SAMPLES, assemb=["trinity", "plass", "jpep", "transdecoder"]),
         #os.path.join(out_dir, "busco", "busco_summaries", "busco_figure.png"),
         #directory(os.path.join(out_dir, "busco_fastas"))
-        expand(os.path.join(out_dir, "busco_sigs", "buscohashes_above_{min_count}_scaled{scaled}_{encoding}_k{k}.sig"), scaled=scaled_vals, encoding=moltypes, k=ksizes, min_count=mincounts),
-        expand(os.path.join(out_dir, "busco_filtsigs_plots", "buscohashes_scaled{scaled}_{encoding}_k{k}_above{min_count}_compare_{comptype}.np.matrix.pdf"), scaled=scaled_vals, encoding=moltypes, k=ksizes, min_count=mincounts, comptype=["jaccard", "cosine"])
+        #expand(os.path.join(out_dir, "busco_sigs", "buscohashes_above_{min_count}_scaled{scaled}_{encoding}_k{k}.sig"), scaled=scaled_vals, encoding="dayhoff", k=dayhoff_ksizes, min_count=mincounts),
+        #expand(os.path.join(out_dir, "busco_sigs", "buscohashes_above_{min_count}_scaled{scaled}_{encoding}_k{k}.sig"), scaled=scaled_vals, encoding="protein", k=protein_ksizes, min_count=mincounts),
+        #expand(os.path.join(out_dir, "busco_sigs", "buscohashes_above_{min_count}_scaled{scaled}_{encoding}_k{k}.sig"), scaled=scaled_vals, encoding="hp", k=hp_ksizes, min_count=mincounts),
+        expand(os.path.join(out_dir, "busco_filtsigs_plots", "buscohashes_scaled{scaled}_{encoding}_k{k}_above{min_count}_compare_{comptype}.np.matrix.pdf"), scaled=scaled_vals, encoding="dayhoff", k=dayhoff_ksizes, min_count=mincounts, comptype=["jaccard", "cosine"]),
+        expand(os.path.join(out_dir, "busco_filtsigs_plots", "buscohashes_scaled{scaled}_{encoding}_k{k}_above{min_count}_compare_{comptype}.np.matrix.pdf"), scaled=scaled_vals, encoding="protein", k=protein_ksizes, min_count=mincounts, comptype=["jaccard", "cosine"]),
+        #expand(os.path.join(out_dir, "busco_filtsigs_plots", "buscohashes_scaled{scaled}_{encoding}_k{k}_above{min_count}_compare_{comptype}.np.matrix.pdf"), scaled=scaled_vals, encoding="hp", k=hp_ksizes, min_count=mincounts, comptype=["jaccard", "cosine"]),
 
 def get_jpep(w):
     #most: MMETSP0224.trinity_out_2.2.0.Trinity.fasta.transdecoder.pep
