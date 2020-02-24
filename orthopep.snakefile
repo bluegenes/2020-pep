@@ -32,8 +32,9 @@ rule all:
         #expand(os.path.join(out_dir, "blast", "{sample}_plass.cdhit100.psq"),sample=SAMPLES)
         #expand(os.path.join(out_dir, "plass", "{sample}_split", "split_fasta.done"), sample=SAMPLES)
         #expand(os.path.join(out_dir, "cdhit", "{sample}_plass_cdhit{perc_id}.fa"), sample=SAMPLES, perc_id=[".95", ".97", ".85", ".80", ".70"])
-        expand(os.path.join(out_dir, "plass", "sigs", "{sample}_plass_cdhit100_scaled{scaled}_{encoding}_k{k}.sig"), sample=SAMPLES, scaled= ["1", "50", "200", "500", "1000","2000"], k=[5,7,11,13,15,17,19,21,25,31,35,41,45], encoding=["protein", "dayhoff", "hp"]),
-        expand(os.path.join(out_dir, "plass", "sourmash", "plots", "plass100_scaled{scaled}_{encoding}_k{k}_{type}_compare.np.matrix.pdf"),sample=SAMPLES, scaled= ["1", "50", "200", "500", "1000","2000"], k=[5,7,11,13,15,17,19,21,25,31,35,41], encoding=["protein", "dayhoff", "hp"], type=["jaccard", "cosine"])
+        #expand(os.path.join(out_dir, "plass", "sigs", "{sample}_plass_cdhit100_scaled{scaled}_{encoding}_k{k}.sig"), sample=SAMPLES, scaled= ["1", "50", "200", "500", "1000","2000"], k=[5,7,11,13,15,17,19,21,25,31,35,41,45], encoding=["protein", "dayhoff", "hp"]),
+        #expand(os.path.join(out_dir, "plass", "sourmash", "plots", "plass100_scaled{scaled}_{encoding}_k{k}_{type}_compare.np.matrix.pdf"),sample=SAMPLES, scaled= ["1", "50", "200", "500", "1000","2000"], k=[5,7,11,13,15,17,19,21,25,31,35,41], encoding=["protein", "dayhoff", "hp"], type=["jaccard", "cosine"])
+        directory(os.path.join(out_dir, "sonicparanoid", "tenhapto"))
 
 
 subworkflow preprocess:
@@ -97,6 +98,28 @@ rule transdecoder_predict:
     threads: 10
     conda: os.path.join(wrappers_dir, "transdecoder-env.yml") 
     script: os.path.join(wrappers_dir, "transdecoder-predict.wrapper.py")
+
+
+rule copy_pepfiles:
+    input: rules.transdecoder_predict.output.pep
+    output: os.path.join(out_dir, "sonicparanoid", "tenhapto_pepfiles", "{sample}_trinity.transdecoder.pep"),
+    log: os.path.join(logs_dir, "utils", "copy_{sample}_trinity.transdecoder.pep.log")
+    shell:
+        """
+        cp {input} {output} 2> {log}
+        """
+
+rule sonicparanoid:
+    input: expand(os.path.join(out_dir, "sonicparanoid", "tenhapto_pepfiles", "{sample}_trinity.transdecoder.pep"), sample=SAMPLES)
+    output: directory(os.path.join(out_dir, "sonicparanoid", "tenhapto"))
+    params:
+        name="test_ten_hapto",
+        indir=os.path.join(out_dir, "sonicparanoid", "tenhapto_pepfiles")
+    conda: os.path.join(wrappers_dir, "sonicparanoid-env.yml")
+    shell:
+        """
+        sonicparanoid -i {params.indir} -o {output} -m fast -t 30 --project-id {params.name}
+        """
 
 rule pear_read_merging:
     """
