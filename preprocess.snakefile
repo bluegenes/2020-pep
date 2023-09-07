@@ -11,7 +11,7 @@ FTP = FTPRemoteProvider()
 
 sample_namelist = config.get("samplelist", "ten_haptophytes.txt")
 SAMPLES = [x.strip().split('\t')[0] for x in open(sample_namelist, "r")]
-SAMPLES.remove("MMETSP0090")
+#SAMPLES.remove("MMETSP0090")
 #SAMPLES = ["MMETSP0090"]
 
 # for all mmetsp samples
@@ -35,7 +35,7 @@ radiuses= config.get("radiuses", ["1"])
 
 rule all:
     input: 
-        expand(os.path.join(out_dir, "sourmash_nucl", "plot", "nucl_k{k}_scaled{scaled}_{comptype}_compare.np.matrix.pdf"), sample=MMETSP_SAMPLES, k=[21,31,51], scaled=2000, comptype=["jaccard", "cosine"])
+        #expand(os.path.join(out_dir, "sourmash_nucl", "plot", "nucl_k{k}_scaled{scaled}_{comptype}_compare.np.matrix.pdf"), sample=MMETSP_SAMPLES, k=[21,31,51], scaled=2000, comptype=["jaccard", "cosine"])
         #expand(os.path.join(out_dir, "preprocess", "cutadapt", "{sample}.polyAabundtrim.fq.gz"), sample=SAMPLES),
         #expand(os.path.join(out_dir, "preprocess", "cutadapt", "{sample}.polyAabundtrim_2.fq.gz"), sample=SAMPLES)
         #expand(os.path.join(out_dir, "preprocess", "khmer", "{sample}.cutpolyA.trim.abundtrim_2.fq.gz"), sample=SAMPLES)
@@ -47,6 +47,9 @@ rule all:
         #expand(os.path.join(out_dir, "sourmash", "codingpep_{encoding}_k{k}", "coding_pep_k{k}_{encoding}_{type}_compare.np"),, k=["5","7","11","13","15","17","19","21", "25", "31", "35", "41" ], encoding= ["protein", "dayhoff", "hp"], type=["jaccard", "cosine"])
         #expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}.codingpep.fa"), sample=SAMPLES, molecule=["hp"], ksize=["30"])
         #expand(os.path.join(out_dir, "sourmash", "codingpep_{molecule}_k{ksize}", "codingpep_k{k}_{encoding}_compare.csv"), molecule=["hp"], ksize=["30"], k=["5","7","11","13","15","17","19","21"], encoding= ["protein", "dayhoff", "hp"])
+        expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pepref}.codingpep.diamond_nr.out"), sample=SAMPLES, molecule= "dayhoff", ksize=[9,11,13,15], pepref=["sprot"])#"merc"]),
+#        expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pepref}.codingpep.diamond_nr.out"), sample=SAMPLES, molecule= "protein", ksize=[5,7], pepref=["sprot", "merc"]),
+#        expand(os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pepref}.codingpep.diamond_nr.out"), sample=SAMPLES, molecule= "hp", ksize=[13,15,17,19,21], pepref=["sprot", "merc"])
 
 # grab the data
 rule ftp_get_fq:
@@ -174,6 +177,26 @@ rule pear_read_merging:
 moltypeD = {"hp": "hydrophobic-polar", "protein": "protein", "dayhoff": "dayhoff"}
 pepRefD = {"sprot": "/home/ntpierce/2020-pep/khtools_testing/uniprot_sprot.fasta.gz", "merc": "/home/ntpierce/2020-pep/khtools_testing/MERC.fasta.gz"}
 
+#rule khtools_index:
+#    input:
+#        pep_ref= lambda w: pepRefD[w.pep_ref]
+#    output:
+#        index=os.path.join(out_dir, "preprocess", "khtools", "reference", "ref{pep_ref}.codingpep.fa"),
+#        noncoding_nucl=os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pep_ref}.noncoding.fa"),
+        #low_complexity_nucl=os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pep_ref}.lowcomplexnucl.fa"),
+        #csv=os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pep_ref}.csv"),
+    #log: os.path.join(logs_dir, "khtools", "{sample}_{molecule}_k{ksize}_ref{pep_ref}.extract_coding.log")
+    #benchmark: os.path.join(logs_dir, "khtools", "{sample}_{molecule}_k{ksize}_ref{pep_ref}.extract_coding.benchmark")
+    #params:
+    #    molecule=lambda w: moltypeD[w.molecule],
+    #wildcard_constraints:
+    #    ksize=["\d+"],
+    #conda: os.path.join(wrappers_dir, "khtools-env.yml")
+    #shell:
+    #    """
+    #    khtools extract-coding --verbose --molecule {params.molecule} --peptide-ksize {wildcards.ksize} --noncoding-nucleotide-fasta {output.noncoding_nucl} --low-complexity-nucleotide-fasta {output.             low_complexity_nucl} --csv {output.csv} {input.pep_ref} {input.reads} > {output.coding_prot} 2> {log}
+    #    """
+
 rule extract_coding:
     input: 
         reads=rules.pear_read_merging.output.assembled,
@@ -193,6 +216,32 @@ rule extract_coding:
     shell:
         """
         khtools extract-coding --verbose --molecule {params.molecule} --peptide-ksize {wildcards.ksize} --noncoding-nucleotide-fasta {output.noncoding_nucl} --low-complexity-nucleotide-fasta {output.low_complexity_nucl} --csv {output.csv} {input.pep_ref} {input.reads} > {output.coding_prot} 2> {log}
+        """
+
+rule diamond_makedb_nr:
+    input: "/group/ctbrowngrp/pierce/databases/nr.gz"
+    output: "/group/ctbrowngrp/pierce/databases/nr.dmnd"
+    conda: os.path.join(wrappers_dir, "diamond-env.yml")
+    log: os.path.join(logs_dir, "diamond", "nr_makedb.log")
+    benchmark: os.path.join(logs_dir, "diamond", "nr_makedb.benchmark")
+    shell:
+        """
+        diamond makedb --in {input} --db {output} 2> {log}
+        """
+
+# for orthofinder, output needs to be of form: Blast{species}_{species}.txt.gz
+rule diamond_blastp_extract_coding:
+    input:
+        pep = rules.extract_coding.output.coding_prot,
+        db = rules.diamond_makedb_nr.output 
+    output: os.path.join(out_dir, "preprocess", "khtools", "{sample}_{molecule}_k{ksize}_ref{pep_ref}.codingpep.diamond_nr.out")
+    log: os.path.join(logs_dir, "diamond", "{sample}_{molecule}_k{ksize}_ref{pep_ref}.codingpep.diamond_nr.log")
+    benchmark: os.path.join(logs_dir, "diamond", "{sample}_{molecule}_k{ksize}_ref{pep_ref}.codingpep.diamond_nr.benchmark")
+    shadow: "shallow"
+    conda: os.path.join(wrappers_dir, "diamond-env.yml")
+    shell:
+        """
+        diamond blastp -d {input.db} -q {input.pep} -o {output} 2> {log}
         """
 
 rule sourmash_compute_reads:

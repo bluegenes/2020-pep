@@ -43,7 +43,6 @@ rule anNOGtate:
          expand(os.path.join(out_dir, "{sample}.emapper.seed_orthologs"), sample=SAMPLES)
 
 
-### metaeuk annotation ###
 rule createdb_MERCref:
     input: "/home/ntpierce/2020-pep/khtools_testing/MERC.fasta.gz"
     output: "/home/ntpierce/2020-pep/khtools_testing/MERC.mmseqsDB"
@@ -77,6 +76,31 @@ rule mmseqs_createdb_trinity:
         mmseqs createdb {input} {output} 2> {log}
         """
 
+rule mmseqs_createdb_transdecoder:
+    input: os.path.join(out_dir, "transdecoder", "{sample}_trinity.transdecoder.pep")
+    output: os.path.join(out_dir, "linclust", "{sample}_transdecoder.mmseqsDB")
+    log: os.path.join(logs_dir, "mmseqs", "{sample}_transdecoder.createDB.log")
+    benchmark: os.path.join(logs_dir, "mmseqs", "{sample}_transdecoder.createDB.benchmark")
+    conda: os.path.join(wrappers_dir, "mmseqs2-env.yml")
+    shell:
+        """
+        mmseqs createdb {input} {output} 2> {log}
+        """
+#rule mmseqs_cluster:
+#    input: os.path.join(out_dir, "trinity", "{sample}_trinity.fa")
+#    output: os.path.join(out_dir, "trinity", "{sample}_trinity.mmseqsDB")
+    #log: os.path.join(logs_dir, "mmseqs", "{sample}_trinity.createDB.log")
+    #benchmark: os.path.join(logs_dir, "mmseqs", "{sample}_trinity.createDB.benchmark")
+    #conda: os.path.join(wrappers_dir, "mmseqs2-env.yml")
+    #shell:
+        #mmseqs linclust inDB outDB tmp
+    #    """
+    #    mmseqs cluster {input} {output} tmp
+    #    """
+
+#rule mmseqs_cluster
+
+### metaeuk annotation ###
 rule metaeuk_easypredict_plass:
     input:
         plassDB= rules.mmseqs_createdb_plass.output,
